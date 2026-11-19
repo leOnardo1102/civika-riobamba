@@ -3,7 +3,7 @@
 Guía ciudadana para obtener **RUC, permiso de Bomberos, uso de suelo, patente municipal, LUF y permiso ARCSA** en Riobamba, sin tramitadores.
 Proyecto del Hackathon **INNOVAiLAB UNACH 2026** · Track Gobierno Digital y Servicios Ciudadanos.
 
-**App publicada:** `https://TU-APP.streamlit.app` *(reemplaza con tu enlace después de desplegar)*
+**App publicada:** https://civika-riobamba-h9tc48lxongyzuhufxw2da.streamlit.app/
 
 ## Funciones
 - 10 tipos de negocio con requisitos, costos y exoneraciones (incluye restaurante, peluquería, farmacia y venta por redes).

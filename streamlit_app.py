@@ -74,19 +74,26 @@ def build_single_html(_fingerprint_value: str) -> str:
     return html
 
 
-# Quitar márgenes y barras de Streamlit para que la app use toda la pantalla
+# Pantalla completa: el marco de Cívika queda fijo y solo se desplaza su contenido.
+# (Evita que la página de Streamlit se mueva y corte la parte de abajo de la app.)
 st.markdown(
     """
     <style>
+      html, body { height: 100%; overflow: hidden !important; }
+      .stApp, [data-testid="stApp"], [data-testid="stAppViewContainer"], [data-testid="stMain"],
+      section.main, .main { overflow: hidden !important; background: #F8FAFC; }
       header[data-testid="stHeader"], footer, #MainMenu,
-      [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] { display: none !important; }
-      .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] { background: #F8FAFC; }
+      [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"],
+      [data-testid="stBottom"] { display: none !important; }
       .block-container, [data-testid="stMainBlockContainer"] { padding: 0 !important; max-width: 100% !important; }
-      [data-testid="stVerticalBlock"] { gap: 0 !important; }
-      iframe { display: block; width: 100%; height: 100vh !important; height: 100dvh !important; border: 0; }
+      iframe[title="st.iframe"], [data-testid="stIFrame"] {
+        position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+        width: 100vw !important; height: 100vh !important; height: 100dvh !important;
+        border: 0 !important; z-index: 999990; background: #F8FAFC;
+      }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-components.html(build_single_html(_fingerprint()), height=900, scrolling=False)
+components.html(build_single_html(_fingerprint()), height=900, scrolling=True)
