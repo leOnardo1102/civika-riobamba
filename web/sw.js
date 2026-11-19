@@ -13,6 +13,7 @@ const ASSETS = [
   "./js/assistant.js",
   "./js/app.js",
   "./js/features.js",
+  "./js/ai_bridge.js",
   "./js/vendor/tailwindcss.js",
   "./js/vendor/lucide.min.js",
   "./js/vendor/qrcode.min.js",

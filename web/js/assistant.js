@@ -172,16 +172,51 @@ class CivikaAssistant {
       });
     }
 
+    // Respuesta guiada (siempre se calcula: actualiza el contexto y sirve de respaldo)
+    const guided = this.analyzeIntentAndRespond(cleanText);
+    const quick = guided.quickReplies || this.getDynamicQuickReplies(this.contextMemory.activeServiceId);
+    const ai = window.civikaAI;
+
+    if (ai && ai.enabled) {
+      ai.remember("user", cleanText);
+      ai.ask(cleanText)
+        .then((res) => {
+          this.hideTypingIndicator();
+          if (res && res.ok && res.text) {
+            ai.remember("assistant", res.text);
+            this.addBotMessage(this.prepareAiText(res.text), guided.actions, null, quick, { ai: true, label: ai.label });
+          } else {
+            this.addBotMessage(this.aiFallbackNote(res && res.error) + guided.text, guided.actions, guided.richCard, quick);
+          }
+        })
+        .catch(() => {
+          this.hideTypingIndicator();
+          this.addBotMessage(guided.text, guided.actions, guided.richCard, quick);
+        });
+      return;
+    }
+
     setTimeout(() => {
       this.hideTypingIndicator();
-      const reply = this.analyzeIntentAndRespond(cleanText);
-      this.addBotMessage(
-        reply.text,
-        reply.actions,
-        reply.richCard,
-        reply.quickReplies || this.getDynamicQuickReplies(this.contextMemory.activeServiceId)
-      );
+      this.addBotMessage(guided.text, guided.actions, guided.richCard, quick);
     }, 450);
+  }
+
+  // Texto de la IA: se escapa todo el HTML y se convierten las viñetas "- " al formato del chat
+  prepareAiText(text) {
+    return this.escapeHtml(String(text || ""))
+      .replace(/^\s*[-*]\s+/gm, "• ")
+      .replace(/^#{1,6}\s*/gm, "");
+  }
+
+  aiFallbackNote(error) {
+    const notes = {
+      limite: "La IA alcanzó su límite gratuito por ahora. Te respondo con la guía de Cívika:\n\n",
+      limite_sesion: "Llegaste al máximo de preguntas a la IA en esta sesión. Te respondo con la guía de Cívika:\n\n",
+      clave_invalida: "La IA no está bien configurada (clave). Te respondo con la guía de Cívika:\n\n",
+      sin_conexion: "No pude conectar con la IA. Te respondo con la guía de Cívika:\n\n"
+    };
+    return notes[error] || "";
   }
 
   analyzeIntentAndRespond(input) {
@@ -525,12 +560,16 @@ class CivikaAssistant {
     chatContainer.scrollTop = chatContainer.scrollHeight;
   }
 
-  addBotMessage(markdownText, actions = null, richCard = null, quickReplies = null) {
+  addBotMessage(markdownText, actions = null, richCard = null, quickReplies = null, opts = {}) {
     const chatContainer = document.getElementById("chatMessages");
     if (!chatContainer) return;
 
     const htmlContent = this.formatMarkdown(markdownText);
-    const plainTextForSpeech = markdownText.replace(/[*#_`~]/g, "");
+    const plainTextForSpeech = markdownText.replace(/[*#_`~]/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+    const headerLabel = opts.ai ? `Copiloto Cívika · IA${opts.label ? " (" + this.escapeHtml(opts.label) + ")" : ""}` : "Copiloto Cívika • Riobamba";
+    const aiNote = opts.ai
+      ? `<p class="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-400">Respuesta generada con IA a partir de la guía de Cívika. Confirma costos y plazos en la entidad oficial.</p>`
+      : "";
     const msgDiv = document.createElement("div");
     msgDiv.className = "flex items-start gap-2.5 mb-3.5 animate-fade-in";
 
@@ -574,7 +613,7 @@ class CivikaAssistant {
       </div>
       <div class="max-w-[88%] bg-white text-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-xs sm:text-sm shadow-sm border border-slate-200/80 leading-relaxed">
         <div class="flex items-center justify-between gap-2 pb-1.5 mb-1.5 border-b border-slate-100">
-          <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Copiloto Cívika • Riobamba</span>
+          <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">${headerLabel}</span>
           <button type="button" class="tts-listen-btn inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 transition"
                   title="Escuchar respuesta en voz alta">
             <i data-lucide="volume-2" class="w-3 h-3"></i>
@@ -582,6 +621,7 @@ class CivikaAssistant {
           </button>
         </div>
         <div>${htmlContent}</div>
+        ${aiNote}
         ${richCardHtml}
         ${actionsHtml}
         ${quickRepliesHtml}

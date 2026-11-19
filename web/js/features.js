@@ -741,7 +741,7 @@
       const hint = $("installAppHint");
       const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
 
-      if (window.CIVIKA_EMBEDDED) return; // dentro de Streamlit no se ofrece instalar
+      if (window.CIVIKA_EMBEDDED || window.self !== window.top) return; // dentro de Streamlit no se ofrece instalar
       if (!isHttp) {
         if (hint) {
           hint.textContent = "Para instalarla como app, ábrela desde un servidor (ver README: «Instalar en el celular»).";
@@ -791,6 +791,17 @@
 
     onAppReady() {
       civikaUI.init();
+      // Indicador del Copiloto: IA conectada o respuestas guiadas
+      const updateAiBadge = () => {
+        const badge = $("aiStatusBadge");
+        const ai = window.civikaAI;
+        if (!badge) return;
+        const on = !!(ai && ai.enabled);
+        badge.textContent = on ? `IA conectada${ai.label ? " · " + ai.label : ""}` : "Respuestas guiadas";
+        badge.className = `ai-badge ${on ? "ai-badge-on" : "ai-badge-off"}`;
+      };
+      if (window.civikaAI) window.civikaAI.onStatusChange = updateAiBadge;
+      updateAiBadge();
       civikaRenewals.load();
       civikaRenewals.render();
       civikaRenewals.refreshIndicators();

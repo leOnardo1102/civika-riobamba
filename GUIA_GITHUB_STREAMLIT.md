@@ -5,7 +5,8 @@ Esta carpeta (`C:\emprendimiento\civika-riobamba`) ya está lista para ser un re
 ```
 civika-riobamba/
 ├── streamlit_app.py        ← la página de Streamlit (archivo principal)
-├── requirements.txt        ← lo que Streamlit debe instalar (solo "streamlit")
+├── civika_ai.py            ← conexión con la IA gratuita (ver GUIA_IA.md)
+├── requirements.txt        ← lo que Streamlit debe instalar
 ├── .streamlit/config.toml  ← colores institucionales
 ├── .gitignore              ← archivos que NO se suben
 ├── web/                    ← la app Cívika completa (aquí haces tus cambios)
@@ -16,7 +17,7 @@ civika-riobamba/
 └── GUIA_GITHUB_STREAMLIT.md  ← esta guía
 ```
 
-`streamlit_app.py` toma la app de la carpeta `web/`, junta todo en una sola página (estilos, scripts, fuentes e íconos) y la muestra a pantalla completa. No tienes que reescribir nada en Python.
+`streamlit_app.py` publica la app de la carpeta `web/` a pantalla completa y atiende las preguntas del Copiloto a la IA. No tienes que reescribir nada en Python. Para activar la IA, sigue **GUIA_IA.md**.
 
 ---
 
