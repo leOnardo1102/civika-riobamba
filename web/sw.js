@@ -1,5 +1,5 @@
 /* Cívika – Service Worker: guarda la app en el equipo para que funcione sin internet */
-const CACHE = "civika-v2026-11-18b";
+const CACHE = "civika-v2026-11-19";
 const ASSETS = [
   "./",
   "./index.html",
@@ -14,6 +14,8 @@ const ASSETS = [
   "./js/app.js",
   "./js/features.js",
   "./js/ai_bridge.js",
+  "./js/pdf.js",
+  "./js/vendor/jspdf.umd.min.js",
   "./js/vendor/tailwindcss.js",
   "./js/vendor/lucide.min.js",
   "./js/vendor/qrcode.min.js",

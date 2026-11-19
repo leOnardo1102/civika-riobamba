@@ -36,6 +36,7 @@
   <script src="js/vendor/lucide.min.js"></script>
   <script src="js/vendor/qrcode.min.js"></script>
   <script src="js/vendor/jsQR.js"></script>
+  <script src="js/vendor/jspdf.umd.min.js"></script>
 
   <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -201,7 +202,7 @@
               <span class="feature-text">Detecta planillas vencidas o ilegibles antes de ir a ventanilla.</span>
               <span class="feature-link">Abrir auditor <i data-lucide="arrow-right"></i></span>
             </button>
-            <button type="button" class="feature-card" onclick="civikaApp.scrollToSection('govukPassportSection')">
+            <button type="button" class="feature-card" onclick="civikaApp.openPassport()">
               <span class="feature-icon"><i data-lucide="qr-code"></i></span>
               <span class="feature-title">Pasaporte de trámite</span>
               <span class="feature-text">Tu carpeta resumida en un código QR, sin datos sensibles.</span>
@@ -311,6 +312,14 @@
                   <span id="folderProgressPercent" class="text-2xl font-semibold text-slate-900 tabular-nums">17%</span>
                 </div>
                 <div class="progress mt-3"><div id="folderProgressBar" class="progress-bar" style="width: 17%"></div></div>
+                <div class="flex flex-wrap gap-2 mt-4">
+                  <button type="button" class="btn-primary btn-sm" onclick="window.civikaPDF && civikaPDF.folder()">
+                    <i data-lucide="file-down" class="w-4 h-4"></i> Descargar mi carpeta (PDF)
+                  </button>
+                  <button type="button" class="btn-secondary btn-sm" onclick="civikaApp.openPassport()">
+                    <i data-lucide="qr-code" class="w-4 h-4"></i> Ver mi Pasaporte QR
+                  </button>
+                </div>
               </div>
               <div id="folderReadyCelebrationBanner" class="hidden callout callout-success">
                 <i data-lucide="party-popper" class="w-5 h-5 shrink-0"></i>
@@ -590,7 +599,7 @@
       <div class="modal-foot">
         <button id="docViewerDownloadBtn" type="button" class="btn-primary w-full justify-center" onclick="civikaApp.downloadOrPrintDocument(civikaApp.activeViewerStep.id)">
           <i data-lucide="download" class="w-4 h-4"></i>
-          <span>Descargar o imprimir (PDF)</span>
+          <span>Descargar ficha en PDF</span>
         </button>
         <button id="docViewerMarkReadyBtn" type="button" class="btn-success w-full justify-center">Marcar como listo en mi carpeta</button>
         <button type="button" class="btn-link-muted" onclick="civikaApp.closeDocumentViewer()">Cerrar</button>
@@ -629,5 +638,6 @@
   <script src="js/assistant.js"></script>
   <script src="js/app.js"></script>
   <script src="js/features.js"></script>
+  <script src="js/pdf.js"></script>
 </body>
 </html>

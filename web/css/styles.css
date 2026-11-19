@@ -572,31 +572,58 @@ body.drawer-open .copilot-fab { opacity: 0; pointer-events: none; }
 
 /* ================================================================ */
 /* 10. LECTURA FÁCIL (accesibilidad)                                */
+/*     Letra ~20 % más grande en toda la app, más contraste,         */
+/*     enlaces subrayados y botones más grandes.                     */
 /* ================================================================ */
-body.easy-read-mode { font-size: 112%; }
-body.easy-read-mode .app-content .text-xs,
-body.easy-read-mode .app-content .text-\[11px\],
-body.easy-read-mode .app-content .text-\[10px\],
-body.easy-read-mode .app-content .text-\[9px\],
-body.easy-read-mode .modal .text-xs,
-body.easy-read-mode .modal .text-\[11px\],
-body.easy-read-mode .modal .text-\[10px\] { font-size: 0.95rem !important; line-height: 1.5 !important; }
-body.easy-read-mode .app-content .text-sm { font-size: 1.05rem !important; line-height: 1.55 !important; }
-body.easy-read-mode .text-slate-400,
-body.easy-read-mode .text-slate-500,
-body.easy-read-mode .text-slate-600,
-body.easy-read-mode .feature-text,
-body.easy-read-mode .stat-label,
-body.easy-read-mode .list-card-text,
-body.easy-read-mode .screen-desc { color: #1E293B !important; }
-body.easy-read-mode .card,
-body.easy-read-mode .feature-card,
-body.easy-read-mode .list-card,
-body.easy-read-mode .biz-card-item,
-body.easy-read-mode .app-content .bg-white { border-color: #475569 !important; }
-body.easy-read-mode button:focus-visible,
-body.easy-read-mode input:focus-visible,
-body.easy-read-mode select:focus-visible { box-shadow: 0 0 0 3px #F59E0B !important; }
+html.easy-read-mode { font-size: 120%; }
+html.easy-read-mode body { line-height: 1.7; }
+
+/* Tamaños fijos en px del contenido generado → pasan a ser legibles */
+html.easy-read-mode .app-content .text-\[9px\],
+html.easy-read-mode .app-content .text-\[10px\],
+html.easy-read-mode .modal .text-\[9px\],
+html.easy-read-mode .modal .text-\[10px\] { font-size: 0.85rem !important; line-height: 1.5 !important; }
+html.easy-read-mode .app-content .text-\[11px\],
+html.easy-read-mode .modal .text-\[11px\] { font-size: 0.92rem !important; line-height: 1.55 !important; }
+html.easy-read-mode .app-content .text-xs,
+html.easy-read-mode .modal .text-xs { font-size: 0.95rem !important; line-height: 1.6 !important; }
+
+/* Más contraste */
+html.easy-read-mode .text-slate-400,
+html.easy-read-mode .text-slate-500,
+html.easy-read-mode .text-slate-600,
+html.easy-read-mode .feature-text,
+html.easy-read-mode .stat-label,
+html.easy-read-mode .list-card-text,
+html.easy-read-mode .screen-desc,
+html.easy-read-mode .side-nav-btn,
+html.easy-read-mode .fine-print { color: #0F172A !important; }
+html.easy-read-mode .hero-text { color: #FFFFFF !important; }
+html.easy-read-mode .card,
+html.easy-read-mode .feature-card,
+html.easy-read-mode .list-card,
+html.easy-read-mode .stat-strip,
+html.easy-read-mode .biz-card-item,
+html.easy-read-mode .app-content .bg-white,
+html.easy-read-mode .input-base { border-color: #334155 !important; border-width: 2px !important; }
+
+/* Enlaces y acciones más visibles */
+html.easy-read-mode .link-btn,
+html.easy-read-mode .feature-link,
+html.easy-read-mode a { text-decoration: underline; text-underline-offset: 3px; }
+html.easy-read-mode .btn-primary,
+html.easy-read-mode .btn-secondary,
+html.easy-read-mode .btn-ghost,
+html.easy-read-mode .btn-success { min-height: 52px; font-size: 1rem; }
+html.easy-read-mode .side-nav-btn,
+html.easy-read-mode .side-pref-btn { min-height: 48px; font-size: 1rem; }
+html.easy-read-mode .bottom-nav-btn { font-size: 0.8rem; }
+html.easy-read-mode .pref-switch { outline: 2px solid #0F172A; }
+
+html.easy-read-mode button:focus-visible,
+html.easy-read-mode a:focus-visible,
+html.easy-read-mode input:focus-visible,
+html.easy-read-mode select:focus-visible { box-shadow: 0 0 0 4px #F59E0B !important; }
 
 /* ================================================================ */
 /* 11. UTILIDADES CONSERVADAS (auditor, pilares, documentos)        */

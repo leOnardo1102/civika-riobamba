@@ -864,6 +864,7 @@
     }
   };
 
+  window.civikaToast = toast;
   window.civikaUI = civikaUI;
   window.civikaRenewals = civikaRenewals;
   window.civikaOfficer = civikaOfficer;

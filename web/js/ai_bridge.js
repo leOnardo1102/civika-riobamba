@@ -60,8 +60,8 @@
       if (nextStep) lines.push(`Siguiente paso sugerido: Paso ${nextStep.paso} (${nextStep.nombre}).`);
 
       // Pasos más relacionados con la pregunta (por palabras clave) + el siguiente paso
-      const words = String(question || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9ñ]+/).filter(w => w.length > 3);
-      const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const words = String(question || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9ñ]+/).filter(w => w.length > 3);
+      const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const scored = pasos.map(p => {
         const hay = norm([p.nombre, p.entidad, p.queHacer, p.queEs, p.costo].join(" "));
         return { p, score: words.reduce((acc, w) => acc + (hay.includes(w) ? 1 : 0), 0) };

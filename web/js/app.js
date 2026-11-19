@@ -275,10 +275,14 @@ class CivikaApp {
   toggleEasyReadMode() {
     this.easyReadMode = !this.easyReadMode;
     this.applyEasyReadModeClass();
+    if (typeof window.civikaToast === "function") {
+      window.civikaToast(this.easyReadMode ? "Lectura Fácil activada: letra más grande y más contraste" : "Lectura Fácil desactivada");
+    }
     this.saveStateToStorage();
   }
 
   applyEasyReadModeClass() {
+    document.documentElement.classList.toggle("easy-read-mode", this.easyReadMode);
     document.body.classList.toggle("easy-read-mode", this.easyReadMode);
     const btn = document.getElementById("easyReadToggleBtn");
     if (btn) btn.setAttribute("aria-pressed", this.easyReadMode ? "true" : "false");
@@ -1439,9 +1443,14 @@ class CivikaApp {
 
           <div class="flex flex-wrap items-center justify-between gap-2">
             <button type="button" onclick="civikaApp.setGovukWizardStep(1)" class="btn-ghost btn-sm">Editar datos</button>
-            <button type="button" onclick="civikaApp.printPassportCard()" class="btn-primary btn-sm">
-              <i data-lucide="printer" class="w-4 h-4"></i><span>Imprimir pasaporte</span>
-            </button>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" onclick="civikaApp.printPassportCard()" class="btn-secondary btn-sm">
+                <i data-lucide="printer" class="w-4 h-4"></i><span>Imprimir</span>
+              </button>
+              <button type="button" onclick="window.civikaPDF && civikaPDF.passport()" class="btn-primary btn-sm">
+                <i data-lucide="file-down" class="w-4 h-4"></i><span>Descargar PDF</span>
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -1527,6 +1536,18 @@ class CivikaApp {
         qrPayload
       });
     }
+  }
+
+  // Muestra el Pasaporte con su QR al instante (con los datos actuales; se pueden editar después)
+  openPassport() {
+    this.goToScreen("screen-unified-forms");
+    this.govukWizardStep = 4;
+    this.renderGovukPassportWizardSection();
+    setTimeout(() => this.generatePassportQRCode(), 60);
+    setTimeout(() => {
+      const el = document.getElementById("govukPassportSection");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 250);
   }
 
   // Etiqueta "Régimen y ARCSA" coherente con el giro (definida en knowledge_base.js)
@@ -2274,6 +2295,12 @@ class CivikaApp {
   downloadOrPrintDocument(stepId) {
     const step = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales.find(s => s.id === stepId);
     if (!step) return;
+
+    // PDF real descargable (js/pdf.js). Si no cargara, se usa la vista para imprimir.
+    if (window.civikaPDF && window.jspdf) {
+      window.civikaPDF.stepGuide(stepId);
+      return;
+    }
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {

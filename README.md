@@ -10,6 +10,7 @@ Proyecto del Hackathon **INNOVAiLAB UNACH 2026** · Track Gobierno Digital y Ser
 - Ruta de trámites en orden (Paso 1 al 6) con 4 pilares: diagnóstico, checklist, anti-rechazo y Plan B.
 - Auditor pre-ventanilla de documentos y validador de cédula/RUC (Módulo 10 y 11).
 - Pasaporte Ciudadano QR y **Modo Ventanilla** para que el funcionario lo escanee.
+- **PDF descargables:** ficha de cada trámite, Pasaporte QR y "Mi carpeta" con casillas para marcar (generados en el navegador, sin internet).
 - **Renovaciones** con avisos y archivo de calendario (.ics).
 - **Copiloto con IA gratuita (Groq o Gemini)** que responde según el negocio y el paso de cada persona, con voz. Sin clave, usa respuestas guiadas.
 - Compartir requisitos por WhatsApp, oficinas con mapa y Modo Lectura Fácil.
@@ -39,8 +40,9 @@ Lee **[GUIA_GITHUB_STREAMLIT.md](GUIA_GITHUB_STREAMLIT.md)**. Resumen: sube el r
 | `web/js/app.js` | Lógica principal: ruta, pilares, auditor, pasaporte QR |
 | `web/js/features.js` | Renovaciones, Modo Ventanilla, WhatsApp, menú adaptable |
 | `web/js/assistant.js` | Copiloto con voz (IA o respuestas guiadas) |
+| `web/js/pdf.js` | Genera los PDF (ficha, pasaporte, mi carpeta) con jsPDF |
 | `web/js/ai_bridge.js` | Puente entre la página y Python para consultar a la IA |
-| `web/js/vendor/` | Tailwind, Lucide, QRCode y jsQR (locales, sin internet) |
+| `web/js/vendor/` | Tailwind, Lucide, QRCode, jsQR y jsPDF (locales, sin internet) |
 
 ## Aviso
 Información orientativa revisada en noviembre de 2026. Las tasas y requisitos pueden cambiar: confirma siempre con el SRI, el GAD Municipal de Riobamba, el Cuerpo de Bomberos o ARCSA. Los nombres y números de RUC de las maquetas son ficticios. Las métricas del panel son simuladas.
