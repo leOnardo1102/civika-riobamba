@@ -1,0 +1,23 @@
+{
+  "name": "Cívika – Trámites para emprendedores de Riobamba",
+  "short_name": "Cívika",
+  "description": "Guía paso a paso para RUC, Bomberos, Uso de Suelo, Patente, LUF y ARCSA en Riobamba, con avisos de renovación.",
+  "lang": "es-EC",
+  "start_url": "./index.html#inicio",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563EB",
+  "categories": ["government", "business", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Mis trámites", "url": "./index.html#tramites", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Renovaciones", "url": "./index.html#renovaciones", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Modo Ventanilla", "url": "./index.html#ventanilla", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

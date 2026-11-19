@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Cívika · Trámites para emprendedores de Riobamba</title>
+  <meta name="description" content="Guía ciudadana para obtener RUC, permiso de Bomberos, uso de suelo, patente municipal, LUF y ARCSA en Riobamba, sin tramitadores.">
+  <meta name="theme-color" content="#0F2942">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Cívika">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- El manifest se agrega desde js/features.js solo cuando la app se sirve por http(s) -->
+
+  <!-- Tailwind (local, sin internet) + paleta institucional -->
+  <script src="js/vendor/tailwindcss.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"] },
+          colors: {
+            navy: { DEFAULT: "#0F2942", 900: "#0B1F33" },
+            blue: {
+              50: "#EFF4FF", 100: "#DBE6FE", 200: "#BFD3FE", 300: "#93B4FD", 400: "#6090FA",
+              500: "#3B6EF6", 600: "#1D4ED8", 700: "#1E40AF", 800: "#1E3A8A", 900: "#0F2942", 950: "#0B1F33"
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <!-- Íconos, generador y lector de QR (locales, sin internet) -->
+  <script src="js/vendor/lucide.min.js"></script>
+  <script src="js/vendor/qrcode.min.js"></script>
+  <script src="js/vendor/jsQR.js"></script>
+
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="app-body">
+
+  <a href="#appScrollContainer" class="skip-link">Saltar al contenido</a>
+  <div id="drawerBackdrop" class="drawer-backdrop hidden" onclick="civikaUI.closeDrawer()"></div>
+
+  <!-- ============================================================ -->
+  <!-- BARRA LATERAL (fija en laptop · deslizable en celular)       -->
+  <!-- ============================================================ -->
+  <aside id="appSidebar" class="app-sidebar" aria-label="Menú principal">
+    <div class="sidebar-brand">
+      <button type="button" class="brand" onclick="civikaApp.goToScreen('screen-home')" aria-label="Ir al inicio">
+        <span class="brand-mark">C</span>
+        <span class="brand-text">
+          <span class="brand-name">Cívika</span>
+          <span class="brand-sub">Riobamba · GovTech</span>
+        </span>
+      </button>
+      <button type="button" class="icon-btn lg:hidden" onclick="civikaUI.closeDrawer()" aria-label="Cerrar menú">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <div class="sidebar-scroll">
+      <nav class="side-group" aria-label="Ciudadano">
+        <p class="side-section-title">Ciudadano</p>
+        <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-home">
+          <i data-lucide="home"></i><span>Inicio</span>
+        </button>
+        <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-unified-forms">
+          <i data-lucide="folder-check"></i><span>Trámites y formularios</span>
+        </button>
+        <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-renewals">
+          <i data-lucide="calendar-clock"></i><span>Renovaciones</span>
+          <span class="renewals-nav-badge side-badge hidden"></span>
+        </button>
+        <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-institutions">
+          <i data-lucide="map-pin"></i><span>Oficinas y mapa</span>
+        </button>
+        <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-assistant">
+          <i data-lucide="sparkles"></i><span>Copiloto IA</span>
+        </button>
+      </nav>
+
+      <nav class="side-group" aria-label="Funcionario">
+        <p class="side-section-title">Funcionario GAD</p>
+        <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-officer">
+          <i data-lucide="scan-line"></i><span>Modo Ventanilla QR</span>
+        </button>
+      </nav>
+
+      <div class="side-group">
+        <p class="side-section-title">Preferencias</p>
+        <button id="easyReadToggleBtn" type="button" class="side-pref-btn" aria-pressed="false">
+          <i data-lucide="eye"></i>
+          <span id="easyReadToggleLabel">Lectura Fácil</span>
+          <span class="pref-switch" aria-hidden="true"></span>
+        </button>
+        <button id="liveMetricsHeaderBtn" type="button" class="side-pref-btn">
+          <i data-lucide="bar-chart-3"></i>
+          <span>Métricas</span>
+          <span class="pref-tag">Demo</span>
+        </button>
+        <button id="installAppBtn" type="button" class="side-pref-btn hidden">
+          <i data-lucide="download"></i>
+          <span>Instalar app</span>
+        </button>
+        <p id="installAppHint" class="side-hint hidden"></p>
+      </div>
+    </div>
+
+    <div class="sidebar-foot">
+      <span class="civika-db-status-badge">Tus datos se guardan solo en este navegador</span>
+      <span class="sidebar-foot-tag">INNOVAiLAB UNACH 2026</span>
+    </div>
+  </aside>
+
+  <!-- ============================================================ -->
+  <!-- CONTENIDO                                                    -->
+  <!-- ============================================================ -->
+  <div class="app-main">
+
+    <header class="app-topbar">
+      <button type="button" class="icon-btn lg:hidden -ml-1" onclick="civikaUI.openDrawer()" aria-label="Abrir menú">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+      <button type="button" class="brand lg:hidden" onclick="civikaApp.goToScreen('screen-home')" aria-label="Ir al inicio">
+        <span class="brand-mark brand-mark-sm">C</span>
+        <span class="brand-name">Cívika</span>
+      </button>
+      <h1 id="pageTitle" class="page-title hidden lg:block">Inicio</h1>
+
+      <div class="topbar-actions">
+        <!-- Escenarios de demo para el jurado (menú compacto) -->
+        <div class="demo-menu" id="demoMenu">
+          <button type="button" class="demo-menu-trigger" aria-haspopup="true" aria-expanded="false" onclick="civikaUI.toggleDemoMenu(event)">
+            <i data-lucide="presentation" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Escenarios de demo</span>
+            <span class="sm:hidden">Demo</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 opacity-60"></i>
+          </button>
+          <div class="demo-menu-panel hidden" role="menu">
+            <p class="demo-menu-label">Negocio de ejemplo</p>
+            <button role="menuitem" class="scenario-quick-btn demo-item" data-scenario="tienda_ropa"><i data-lucide="shirt"></i>Tienda de ropa</button>
+            <button role="menuitem" class="scenario-quick-btn demo-item" data-scenario="cafeteria_centro"><i data-lucide="coffee"></i>Cafetería en el centro</button>
+            <button role="menuitem" class="scenario-quick-btn demo-item" data-scenario="profesional"><i data-lucide="briefcase"></i>Profesional (Régimen General)</button>
+            <p class="demo-menu-label">Flujo completo</p>
+            <button role="menuitem" class="scenario-quick-btn demo-item" data-scenario="completar_todo"><i data-lucide="qr-code"></i>Carpeta al 100 % + Pasaporte QR</button>
+            <button role="menuitem" class="scenario-quick-btn demo-item" data-scenario="ventanilla_demo"><i data-lucide="scan-line"></i>Funcionario escanea el QR</button>
+            <button role="menuitem" class="scenario-quick-btn demo-item" data-scenario="renovaciones_demo"><i data-lucide="calendar-clock"></i>Avisos de renovación</button>
+            <div class="demo-menu-sep"></div>
+            <button role="menuitem" class="scenario-quick-btn demo-item demo-item-muted" data-scenario="reiniciar"><i data-lucide="rotate-ccw"></i>Reiniciar demo</button>
+          </div>
+        </div>
+
+        <button type="button" class="icon-btn relative" onclick="civikaApp.goToScreen('screen-renewals')" aria-label="Renovaciones y vencimientos" title="Renovaciones">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span class="renewals-nav-badge topbar-badge hidden"></span>
+        </button>
+        <button type="button" class="btn-primary btn-sm hidden lg:inline-flex" onclick="civikaApp.goToScreen('screen-assistant')">
+          <i data-lucide="sparkles" class="w-4 h-4"></i><span>Copiloto IA</span>
+        </button>
+      </div>
+    </header>
+
+    <main id="appScrollContainer" class="app-content" tabindex="-1">
+
+      <!-- ========================================================== -->
+      <!-- INICIO                                                     -->
+      <!-- ========================================================== -->
+      <section id="screen-home" class="app-screen space-y-6 animate-fade-in">
+
+        <div class="hero">
+          <p class="hero-eyebrow">
+            <i data-lucide="badge-check" class="w-4 h-4"></i>
+            Información revisada · noviembre 2026
+          </p>
+          <h2 class="hero-title">Tus trámites claros, tus pasos seguros.</h2>
+          <p class="hero-text">
+            Te guiamos, paso a paso, para obtener tu RUC, el permiso de Bomberos, el uso de suelo, la patente municipal, la LUF y el permiso de ARCSA en Riobamba. Sin tramitadores y sin pedirte contraseñas.
+          </p>
+          <div class="hero-actions">
+            <button type="button" class="btn-hero-primary" onclick="civikaApp.goToScreen('screen-unified-forms')">
+              Empezar mis trámites <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+            <button type="button" class="btn-hero-secondary" onclick="civikaApp.goToScreen('screen-assistant')">
+              <i data-lucide="mic" class="w-4 h-4"></i> Preguntar al Copiloto IA
+            </button>
+          </div>
+        </div>
+
+        <!-- Aviso de permisos por vencer (features.js) -->
+        <div id="homeRenewalAlert"></div>
+
+        <div>
+          <h3 class="section-title">¿Qué puedes hacer?</h3>
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <button type="button" class="feature-card" onclick="civikaApp.scrollToSection('preWindowAuditorSection')">
+              <span class="feature-icon"><i data-lucide="file-search"></i></span>
+              <span class="feature-title">Revisar documentos</span>
+              <span class="feature-text">Detecta planillas vencidas o ilegibles antes de ir a ventanilla.</span>
+              <span class="feature-link">Abrir auditor <i data-lucide="arrow-right"></i></span>
+            </button>
+            <button type="button" class="feature-card" onclick="civikaApp.scrollToSection('govukPassportSection')">
+              <span class="feature-icon"><i data-lucide="qr-code"></i></span>
+              <span class="feature-title">Pasaporte de trámite</span>
+              <span class="feature-text">Tu carpeta resumida en un código QR, sin datos sensibles.</span>
+              <span class="feature-link">Generar QR <i data-lucide="arrow-right"></i></span>
+            </button>
+            <button type="button" class="feature-card" onclick="civikaApp.goToScreen('screen-renewals')">
+              <span class="feature-icon"><i data-lucide="calendar-clock"></i></span>
+              <span class="feature-title">Renovaciones</span>
+              <span class="feature-text">Avisos antes de que venzan tu patente, Bomberos o ARCSA.</span>
+              <span class="feature-link">Ver vencimientos <i data-lucide="arrow-right"></i></span>
+            </button>
+            <button type="button" class="feature-card" onclick="civikaApp.goToScreen('screen-officer')">
+              <span class="feature-icon"><i data-lucide="scan-line"></i></span>
+              <span class="feature-title">Modo Ventanilla</span>
+              <span class="feature-text">El funcionario escanea el QR y revisa la carpeta.</span>
+              <span class="feature-link">Escanear QR <i data-lucide="arrow-right"></i></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="stat-strip">
+          <div class="stat">
+            <span class="stat-value">6</span>
+            <span class="stat-label">pasos en el orden correcto</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">10</span>
+            <span class="stat-label">tipos de negocio con requisitos propios</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">~85 %</span>
+            <span class="stat-label">menos tiempo de preparación <span class="text-slate-400">(estimación)</span></span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">$0</span>
+            <span class="stat-label">en tramitadores</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <h3 class="section-title mb-0">Trámites frecuentes</h3>
+            <button type="button" class="link-btn" onclick="civikaApp.goToScreen('screen-unified-forms')">Ver los 6 pasos <i data-lucide="arrow-right" class="w-4 h-4"></i></button>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-3">
+            <button type="button" class="list-card" onclick="civikaApp.openDocumentViewer('req_formulario_patente', 'justification')">
+              <span class="feature-icon"><i data-lucide="clipboard-list"></i></span>
+              <span class="min-w-0">
+                <span class="list-card-title">Patente Municipal</span>
+                <span class="list-card-text">COOTAD Arts. 547–553 · exoneración para artesanos (Art. 550)</span>
+              </span>
+              <i data-lucide="chevron-right" class="list-card-chevron"></i>
+            </button>
+            <button type="button" class="list-card" onclick="civikaApp.openDocumentViewer('req_luf_final', 'justification')">
+              <span class="feature-icon"><i data-lucide="award"></i></span>
+              <span class="min-w-0">
+                <span class="list-card-title">LUF y permiso ARCSA</span>
+                <span class="list-card-text">Licencia municipal y exoneración para microempresas</span>
+              </span>
+              <i data-lucide="chevron-right" class="list-card-chevron"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="note-card">
+          <i data-lucide="shield-check" class="w-5 h-5 text-emerald-700 shrink-0"></i>
+          <div>
+            <p class="font-semibold text-slate-900">Seguridad y veracidad</p>
+            <p>Cívika nunca pide contraseñas, claves del SRI ni datos bancarios. Las tasas que dependen del capital o del área del local se calculan en cada entidad según la ordenanza vigente.</p>
+            <button type="button" class="link-btn mt-2" onclick="civikaApp.openLiveMetricsModal()">Ver métricas de la demo <i data-lucide="arrow-right" class="w-4 h-4"></i></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================== -->
+      <!-- TRÁMITES Y FORMULARIOS                                     -->
+      <!-- ========================================================== -->
+      <section id="screen-unified-forms" class="app-screen space-y-6 hidden animate-fade-in">
+
+        <header class="screen-header">
+          <p class="eyebrow">Ruta del emprendedor · Paso 1 al 6</p>
+          <h2 class="screen-title">Trámites y formularios</h2>
+          <p class="screen-desc">Elige tu tipo de negocio. Verás los requisitos exactos, el orden de los trámites y, al final, tu Pasaporte QR para la ventanilla.</p>
+        </header>
+
+        <div>
+          <h3 class="section-title">1. ¿Qué tipo de negocio tienes?</h3>
+          <div id="commonBusinessesContainer" class="grid grid-cols-2 gap-2.5 xl:grid-cols-3"></div>
+        </div>
+
+        <!-- Laptop ancha: expediente a la izquierda, Pasaporte QR a la derecha -->
+        <div class="forms-layout">
+          <div class="space-y-6 min-w-0">
+
+            <div>
+              <h3 class="section-title">2. Tu expediente</h3>
+              <div id="selectedBusinessDocSection"></div>
+            </div>
+
+            <div id="folderProgressBlock" class="space-y-3">
+              <div class="card card-pad">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <p class="eyebrow">Progreso de tu carpeta</p>
+                    <p id="folderProgressCount" class="text-sm text-slate-600 mt-1">1 de 6 servicios listos en tu carpeta</p>
+                  </div>
+                  <span id="folderProgressPercent" class="text-2xl font-semibold text-slate-900 tabular-nums">17%</span>
+                </div>
+                <div class="progress mt-3"><div id="folderProgressBar" class="progress-bar" style="width: 17%"></div></div>
+              </div>
+              <div id="folderReadyCelebrationBanner" class="hidden callout callout-success">
+                <i data-lucide="party-popper" class="w-5 h-5 shrink-0"></i>
+                <div>
+                  <p class="font-semibold">Tu carpeta está completa</p>
+                  <p>Genera tu Pasaporte QR y preséntalo en la Ventanilla Única (5 de Junio y Veloz).</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-end justify-between gap-3 mb-3 flex-wrap">
+                <h3 class="section-title mb-0">3. Trámites en orden</h3>
+                <span class="text-xs text-slate-500">SRI · Bomberos · GAD Riobamba · ARCSA</span>
+              </div>
+              <div id="unifiedStepsContainer" class="space-y-4"></div>
+            </div>
+
+            <div id="preWindowAuditorSection"></div>
+
+            <!-- Pasaporte QR en celular/tablet (en laptop ancha va en la columna derecha) -->
+            <div id="passportMobileSlot" class="xl:hidden"></div>
+
+            <div id="timeComparisonWidget"></div>
+
+            <div>
+              <h3 class="section-title">Documentos complementarios para la carpeta física</h3>
+              <div id="complementaryRequirementsList" class="space-y-2"></div>
+            </div>
+
+            <div id="folderAssemblyGuideContainer"></div>
+            <div id="officialDownloadsContainer"></div>
+          </div>
+
+          <aside id="formsSideColumn" class="forms-side min-w-0">
+            <h3 class="section-title">4. Pasaporte Ciudadano QR</h3>
+            <div id="govukPassportSection"></div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ========================================================== -->
+      <!-- COPILOTO IA                                                -->
+      <!-- ========================================================== -->
+      <section id="screen-assistant" class="app-screen chat-screen hidden animate-fade-in">
+        <div class="card card-pad-sm shrink-0 space-y-2.5">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="feature-icon feature-icon-solid"><i data-lucide="sparkles"></i></span>
+              <div class="min-w-0">
+                <h2 class="font-semibold text-slate-900">Copiloto Cívika</h2>
+                <p class="text-xs text-slate-500">Responde sobre SRI, GAD Riobamba, Bomberos y ARCSA. Puedes hablarle.</p>
+              </div>
+            </div>
+            <button type="button" class="btn-secondary btn-sm shrink-0" onclick="civikaApp.goToScreen('screen-unified-forms')">Ver mis trámites</button>
+          </div>
+          <div id="chatContextMemoryBadge" class="context-badge"></div>
+        </div>
+
+        <div id="chatMessages" class="chat-messages custom-scrollbar"></div>
+
+        <div class="chat-suggestions">
+          <button type="button" class="chip" onclick="civikaApp.assistant.processUserMessage('¿Qué régimen RIMPE me toca?')">¿Qué régimen RIMPE me toca?</button>
+          <button type="button" class="chip" onclick="civikaApp.assistant.processUserMessage('Error común a evitar')">Errores comunes</button>
+          <button type="button" class="chip" onclick="civikaApp.assistant.processUserMessage('Activar Plan B')">Plan B</button>
+          <button type="button" class="chip" onclick="civikaApp.assistant.processUserMessage('¿Cuánto cuesta realmente?')">¿Cuánto cuesta?</button>
+        </div>
+
+        <form id="chatForm" class="chat-form">
+          <button type="button" id="chatMicBtn" class="icon-btn icon-btn-outline" title="Dictar por voz" aria-label="Dictar por voz">
+            <i data-lucide="mic" class="w-5 h-5"></i>
+          </button>
+          <input type="text" id="chatInput" class="input-base flex-1" autocomplete="off"
+                 placeholder="Escribe tu pregunta sobre RUC, patente, Bomberos o ARCSA…">
+          <button type="submit" class="icon-btn icon-btn-primary" aria-label="Enviar">
+            <i data-lucide="send" class="w-5 h-5"></i>
+          </button>
+        </form>
+      </section>
+
+      <!-- ========================================================== -->
+      <!-- OFICINAS Y MAPA                                            -->
+      <!-- ========================================================== -->
+      <section id="screen-institutions" class="app-screen space-y-6 hidden animate-fade-in">
+        <header class="screen-header">
+          <p class="eyebrow">Directorio</p>
+          <h2 class="screen-title">Oficinas y ventanillas en Riobamba</h2>
+          <p class="screen-desc">Direcciones, horarios y recomendaciones antes de ir a cada entidad.</p>
+        </header>
+
+        <div class="grid gap-5 lg:grid-cols-2 lg:items-start">
+          <div class="card card-pad-sm space-y-3 lg:sticky lg:top-20">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-start gap-3 min-w-0">
+                <span class="feature-icon"><i data-lucide="map-pin"></i></span>
+                <div class="min-w-0">
+                  <h3 id="mapActiveLocationName" class="font-semibold text-slate-900 leading-snug">GAD Municipal de Riobamba (Palacio Municipal / Ventanilla Única)</h3>
+                  <p id="mapActiveLocationAddress" class="text-sm text-slate-500">Calle 5 de Junio y Veloz (Palacio Municipal)</p>
+                </div>
+              </div>
+            </div>
+            <div class="map-frame">
+              <iframe id="googleMapsIframe" title="Mapa de la oficina seleccionada" loading="lazy" allowfullscreen
+                      referrerpolicy="no-referrer-when-downgrade"
+                      src="https://maps.google.com/maps?q=GAD+Municipal+de+Riobamba,+5+de+Junio+y+Veloz,+Riobamba&t=&z=16&ie=UTF8&iwloc=&output=embed"></iframe>
+            </div>
+            <p id="mapActiveLocationRef" class="text-xs text-slate-500">Referencia: Centro Histórico de Riobamba (frente al Parque Sucre / Colegio Maldonado)</p>
+          </div>
+
+          <div class="space-y-3 min-w-0">
+            <div class="segmented" role="tablist" aria-label="Filtrar oficinas">
+              <button class="inst-filter-btn bg-blue-600 text-white" data-category="Todas">Todas</button>
+              <button class="inst-filter-btn bg-white text-slate-600 border-slate-200" data-category="Municipio">Municipio</button>
+              <button class="inst-filter-btn bg-white text-slate-600 border-slate-200" data-category="SRI">SRI</button>
+              <button class="inst-filter-btn bg-white text-slate-600 border-slate-200" data-category="Bomberos">Bomberos</button>
+              <button class="inst-filter-btn bg-white text-slate-600 border-slate-200" data-category="ARCSA">ARCSA</button>
+              <button class="inst-filter-btn bg-white text-slate-600 border-slate-200" data-category="Artesanos">Artesanos</button>
+              <button class="inst-filter-btn bg-white text-slate-600 border-slate-200" data-category="IESS">IESS</button>
+            </div>
+            <div id="institutionsList" class="space-y-3"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================================== -->
+      <!-- RENOVACIONES                                               -->
+      <!-- ========================================================== -->
+      <section id="screen-renewals" class="app-screen space-y-6 hidden animate-fade-in">
+        <header class="screen-header screen-header-row">
+          <div>
+            <p class="eyebrow">Todo el año</p>
+            <h2 class="screen-title">Renovaciones y vencimientos</h2>
+            <p class="screen-desc">Escribe la fecha de vencimiento de cada documento. Te avisamos a los 30 y a los 7 días, y puedes llevar los avisos al calendario de tu celular.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn-primary" onclick="civikaRenewals.downloadIcs()">
+              <i data-lucide="calendar-plus" class="w-4 h-4"></i> Agregar al calendario
+            </button>
+            <button type="button" id="renewalsNotifyBtn" class="btn-secondary hidden" onclick="civikaRenewals.enableNotifications()">
+              <i data-lucide="bell-ring" class="w-4 h-4"></i> Activar avisos
+            </button>
+          </div>
+        </header>
+
+        <div id="renewalsSummary" class="grid grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        <div id="renewalsList" class="grid gap-4 md:grid-cols-2"></div>
+
+        <form id="renewalsAddForm" class="card card-pad grid gap-3 sm:grid-cols-[1fr_190px_auto] sm:items-end" onsubmit="event.preventDefault(); civikaRenewals.addCustom();">
+          <label class="field">
+            <span class="field-label">Otro permiso o documento</span>
+            <input id="renewalCustomName" type="text" required maxlength="60" placeholder="Ej.: firma electrónica, registro de turismo" class="input-base">
+          </label>
+          <label class="field">
+            <span class="field-label">Vence el</span>
+            <input id="renewalCustomDate" type="date" required class="input-base">
+          </label>
+          <button type="submit" class="btn-secondary justify-center"><i data-lucide="plus" class="w-4 h-4"></i> Agregar</button>
+        </form>
+
+        <p class="fine-print">
+          <i data-lucide="info" class="w-4 h-4 shrink-0"></i>
+          <span>Los plazos los fija cada entidad. Usa siempre la fecha impresa en tu documento o la del portal oficial. El permiso ARCSA tiene vigencia de un año desde su emisión.</span>
+        </p>
+      </section>
+
+      <!-- ========================================================== -->
+      <!-- MODO VENTANILLA (FUNCIONARIO)                              -->
+      <!-- ========================================================== -->
+      <section id="screen-officer" class="app-screen space-y-6 hidden animate-fade-in">
+        <header class="screen-header">
+          <p class="eyebrow">Funcionario GAD Riobamba</p>
+          <h2 class="screen-title">Modo Ventanilla</h2>
+          <p class="screen-desc">Escanea el Pasaporte QR del ciudadano para ver qué trámites declara listos y qué documentos originales revisar. Todo se procesa en este equipo.</p>
+        </header>
+
+        <div class="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
+          <div class="space-y-3 lg:sticky lg:top-20">
+            <div class="card card-pad space-y-2.5">
+              <button type="button" id="officerCameraBtn" class="btn-primary w-full justify-center" onclick="civikaOfficer.startCamera()">
+                <i data-lucide="camera" class="w-4 h-4"></i> Escanear con la cámara
+              </button>
+              <label class="btn-secondary w-full justify-center cursor-pointer">
+                <i data-lucide="image-up" class="w-4 h-4"></i> Subir foto del QR
+                <input type="file" accept="image/*" class="hidden" onchange="civikaOfficer.scanFile(this.files[0]); this.value='';">
+              </label>
+              <button type="button" class="btn-ghost w-full justify-center" onclick="civikaOfficer.useLocalPassport()">
+                <i data-lucide="monitor" class="w-4 h-4"></i> Usar el pasaporte de este equipo
+              </button>
+
+              <div id="officerScanner" class="hidden space-y-2 pt-1">
+                <div class="scanner-frame">
+                  <video id="officerVideo" playsinline muted></video>
+                  <div class="scanner-target"></div>
+                </div>
+                <p id="officerScanStatus" class="text-sm text-slate-500 text-center">Apunta la cámara al código QR…</p>
+                <button type="button" class="btn-ghost w-full justify-center" onclick="civikaOfficer.stopCamera()"><i data-lucide="x" class="w-4 h-4"></i> Detener cámara</button>
+              </div>
+
+              <details class="disclosure">
+                <summary>¿No se lee? Pega el texto del código</summary>
+                <form class="mt-2 grid gap-2" onsubmit="event.preventDefault(); civikaOfficer.handlePayload(document.getElementById('officerPasteInput').value);">
+                  <textarea id="officerPasteInput" rows="2" class="input-base font-mono text-xs" placeholder="CIVIKA1|..."></textarea>
+                  <button class="btn-secondary justify-center" type="submit">Verificar</button>
+                </form>
+              </details>
+              <canvas id="officerCanvas" class="hidden"></canvas>
+            </div>
+            <p class="fine-print">
+              <i data-lucide="shield-check" class="w-4 h-4 shrink-0 text-emerald-700"></i>
+              <span>El QR solo contiene datos declarados por el ciudadano y su cédula enmascarada. Verifique siempre los documentos originales.</span>
+            </p>
+          </div>
+
+          <div id="officerResult">
+            <div class="empty-state">
+              <i data-lucide="scan-qr-code" class="w-10 h-10"></i>
+              <p>Aún no se ha escaneado ningún pasaporte.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- CELULAR: navegación inferior + botón flotante del Copiloto   -->
+  <!-- ============================================================ -->
+  <nav class="bottom-nav lg:hidden" aria-label="Navegación principal">
+    <button type="button" class="nav-tab-btn bottom-nav-btn" data-target-screen="screen-home">
+      <i data-lucide="home"></i><span>Inicio</span>
+    </button>
+    <button type="button" class="nav-tab-btn bottom-nav-btn" data-target-screen="screen-unified-forms">
+      <i data-lucide="folder-check"></i><span>Trámites</span>
+    </button>
+    <button type="button" class="nav-tab-btn bottom-nav-btn relative" data-target-screen="screen-renewals">
+      <i data-lucide="calendar-clock"></i><span>Renovar</span>
+      <span class="renewals-nav-badge bottom-badge hidden"></span>
+    </button>
+    <button type="button" class="bottom-nav-btn" onclick="civikaUI.openDrawer()">
+      <i data-lucide="menu"></i><span>Más</span>
+    </button>
+  </nav>
+
+  <button type="button" id="copilotFab" class="copilot-fab lg:hidden" onclick="civikaApp.goToScreen('screen-assistant')" aria-label="Abrir Copiloto IA">
+    <i data-lucide="sparkles" class="w-5 h-5"></i>
+    <span>Copiloto IA</span>
+  </button>
+
+  <!-- ============================================================ -->
+  <!-- VENTANA: DETALLE DEL TRÁMITE Y DOCUMENTO DE REFERENCIA       -->
+  <!-- ============================================================ -->
+  <div id="documentViewerModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="docViewerTitle">
+    <div class="modal-panel custom-scrollbar">
+      <div class="modal-head">
+        <div class="min-w-0">
+          <span id="docViewerEntityBadge" class="eyebrow">GAD Municipal de Riobamba</span>
+          <h3 id="docViewerTitle" class="modal-title">Formulario de Solicitud de Patente Municipal y LUF</h3>
+        </div>
+        <button type="button" class="icon-btn" onclick="civikaApp.closeDocumentViewer()" aria-label="Cerrar">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="flex justify-end">
+        <button id="docViewerToggleViewBtn" type="button" class="btn-ghost btn-sm" onclick="civikaApp.toggleModalViewMode()">
+          <i data-lucide="eye" class="w-4 h-4"></i>
+          <span>Ver formato físico</span>
+        </button>
+      </div>
+
+      <div id="docViewerRenderArea" class="my-3"></div>
+
+      <a id="docViewerPortalLink" href="https://www.gadmriobamba.gob.ec" target="_blank" rel="noopener noreferrer" class="link-btn break-all">https://www.gadmriobamba.gob.ec</a>
+
+      <div class="modal-foot">
+        <button id="docViewerDownloadBtn" type="button" class="btn-primary w-full justify-center" onclick="civikaApp.downloadOrPrintDocument(civikaApp.activeViewerStep.id)">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Descargar o imprimir (PDF)</span>
+        </button>
+        <button id="docViewerMarkReadyBtn" type="button" class="btn-success w-full justify-center">Marcar como listo en mi carpeta</button>
+        <button type="button" class="btn-link-muted" onclick="civikaApp.closeDocumentViewer()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- VENTANA: MÉTRICAS DE DEMOSTRACIÓN                            -->
+  <!-- ============================================================ -->
+  <div id="liveMetricsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="liveMetricsTitle">
+    <div class="modal-panel modal-panel-wide custom-scrollbar">
+      <div class="modal-head">
+        <div class="min-w-0">
+          <span class="eyebrow">Observatorio · datos simulados</span>
+          <h3 id="liveMetricsTitle" class="modal-title">Métricas y estado de portales</h3>
+          <p class="text-sm text-slate-500 mt-1">Cifras de ejemplo para la presentación. El prototipo guarda el avance solo en este navegador; el conector a la nube (Supabase) está preparado pero no activo.</p>
+        </div>
+        <button type="button" class="icon-btn" onclick="civikaApp.closeLiveMetricsModal()" aria-label="Cerrar">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="liveMetricsModalBody" class="my-4"></div>
+      <div class="modal-foot modal-foot-row">
+        <span class="civika-db-status-badge text-xs text-slate-500">Tus datos se guardan solo en este navegador</span>
+        <button type="button" class="btn-secondary btn-sm" onclick="civikaApp.closeLiveMetricsModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts de la aplicación -->
+  <script src="js/db.js"></script>
+  <script src="js/knowledge_base.js"></script>
+  <script src="js/institutions.js"></script>
+  <script src="js/assistant.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/features.js"></script>
+</body>
+</html>
