@@ -37,7 +37,9 @@
   <script src="js/vendor/qrcode.min.js"></script>
   <script src="js/vendor/jsQR.js"></script>
   <script src="js/vendor/jspdf.umd.min.js"></script>
+  <script src="js/vendor/leaflet/leaflet.js"></script>
 
+  <link rel="stylesheet" href="js/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="app-body">
@@ -417,17 +419,27 @@
               <div class="flex items-start gap-3 min-w-0">
                 <span class="feature-icon"><i data-lucide="map-pin"></i></span>
                 <div class="min-w-0">
-                  <h3 id="mapActiveLocationName" class="font-semibold text-slate-900 leading-snug">GAD Municipal de Riobamba (Palacio Municipal / Ventanilla Única)</h3>
-                  <p id="mapActiveLocationAddress" class="text-sm text-slate-500">Calle 5 de Junio y Veloz (Palacio Municipal)</p>
+                  <h3 id="mapActiveLocationName" class="font-semibold text-slate-900 leading-snug">Todas las oficinas</h3>
+                  <p id="mapActiveLocationAddress" class="text-sm text-slate-500">Toca un punto del mapa o una tarjeta para ver los detalles.</p>
                 </div>
               </div>
             </div>
-            <div class="map-frame">
-              <iframe id="googleMapsIframe" title="Mapa de la oficina seleccionada" loading="lazy" allowfullscreen
-                      referrerpolicy="no-referrer-when-downgrade"
-                      src="https://maps.google.com/maps?q=GAD+Municipal+de+Riobamba,+5+de+Junio+y+Veloz,+Riobamba&t=&z=16&ie=UTF8&iwloc=&output=embed"></iframe>
+
+            <div class="map-frame map-frame-live">
+              <div id="civikaMap" role="region" aria-label="Mapa de oficinas en Riobamba"></div>
+              <p id="mapOfflineNote" class="map-offline hidden">Sin internet no se ve el mapa base, pero el listado de oficinas sigue disponible.</p>
             </div>
-            <p id="mapActiveLocationRef" class="text-xs text-slate-500">Referencia: Centro Histórico de Riobamba (frente al Parque Sucre / Colegio Maldonado)</p>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" id="mapLocateBtn" class="btn-primary btn-sm" onclick="civikaMap.locate()">
+                <i data-lucide="locate-fixed" class="w-4 h-4"></i> Mi ubicación
+              </button>
+              <button type="button" class="btn-secondary btn-sm" onclick="civikaMap.fitVisible()">
+                <i data-lucide="maximize-2" class="w-4 h-4"></i> Ver todas
+              </button>
+              <span class="text-xs text-slate-500 ml-auto">Capas: botón ▣ arriba a la derecha</span>
+            </div>
+            <p id="mapActiveLocationRef" class="text-xs text-slate-500">Mapa: © colaboradores de OpenStreetMap. Algunas ubicaciones son aproximadas; confirma la dirección antes de ir.</p>
           </div>
 
           <div class="space-y-3 min-w-0">
@@ -635,6 +647,7 @@
   <script src="js/knowledge_base.js"></script>
   <script src="js/ai_bridge.js"></script>
   <script src="js/institutions.js"></script>
+  <script src="js/map.js"></script>
   <script src="js/assistant.js"></script>
   <script src="js/app.js"></script>
   <script src="js/features.js"></script>

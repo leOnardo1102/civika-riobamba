@@ -1,7 +1,8 @@
 /**
  * CIVIKA - Directorio de Instituciones Públicas en Riobamba
  * Datos verificados para el cantón Riobamba (GAD Municipal, Cuerpo de Bomberos, SRI, ARCSA, JNDA, IESS)
- * Con integración de Google Maps en vivo + Tarjeta de Respaldo Offline (Plan B para Demo sin Internet)
+ * Mapa interactivo en js/map.js (Leaflet + OpenStreetMap). "ubicacionAproximada" marca los puntos que
+ * aún no se han verificado en sitio o en QGIS (ver GUIA_MAPAS.md).
  */
 
 const CIVIKA_INSTITUTIONS = [
@@ -26,6 +27,7 @@ const CIVIKA_INSTITUTIONS = [
   },
   {
     id: "ordenamiento_territorial",
+    ubicacionAproximada: true,
     nombre: "Dirección de Ordenamiento Territorial (Uso de Suelo PUGS - GADMR)",
     categoria: "Municipio",
     icono: "map-pin",
@@ -83,6 +85,7 @@ const CIVIKA_INSTITUTIONS = [
   },
   {
     id: "arcsa_zonal3",
+    ubicacionAproximada: true,
     nombre: "ARCSA - Coordinación Zonal 3 (Atención Chimborazo / Riobamba)",
     categoria: "ARCSA",
     icono: "shield-plus",
@@ -102,6 +105,7 @@ const CIVIKA_INSTITUTIONS = [
   },
   {
     id: "jnda_chimborazo",
+    ubicacionAproximada: true,
     nombre: "Junta Provincial de Defensa del Artesano de Chimborazo (JNDA)",
     categoria: "Artesanos",
     icono: "hammer",
@@ -142,28 +146,20 @@ const CIVIKA_INSTITUTIONS = [
 
 let activeInstitutionId = "municipio_riobamba";
 
-function selectInstitutionMap(instId) {
+function selectInstitutionMap(instId, opts = {}) {
   const inst = CIVIKA_INSTITUTIONS.find(i => i.id === instId);
   if (!inst) return;
 
   activeInstitutionId = instId;
-  const mapIframe = document.getElementById("googleMapsIframe");
   const mapLabel = document.getElementById("mapActiveLocationName");
   const mapAddress = document.getElementById("mapActiveLocationAddress");
   const mapRef = document.getElementById("mapActiveLocationRef");
 
-  if (mapIframe && navigator.onLine !== false) {
-    mapIframe.src = inst.mapsEmbedUrl;
-  }
-  if (mapLabel) {
-    mapLabel.textContent = inst.nombre;
-  }
-  if (mapAddress) {
-    mapAddress.textContent = inst.direccion;
-  }
-  if (mapRef) {
-    mapRef.textContent = `Referencia: ${inst.referencia} • ${inst.consejoVentanilla || ""}`;
-  }
+  if (mapLabel) mapLabel.textContent = inst.nombre;
+  if (mapAddress) mapAddress.textContent = inst.direccion;
+  if (mapRef) mapRef.textContent = `Referencia: ${inst.referencia}${inst.consejoVentanilla ? " · " + inst.consejoVentanilla : ""}`;
+
+  if (window.civikaMap && !opts.fromMap) window.civikaMap.focus(instId);
 
   // Resaltar tarjeta seleccionada
   document.querySelectorAll(".institution-card").forEach(c => {
@@ -172,7 +168,7 @@ function selectInstitutionMap(instId) {
   const activeCard = document.getElementById(`inst-card-${instId}`);
   if (activeCard) {
     activeCard.classList.add("border-blue-500", "ring-2", "ring-blue-100", "bg-blue-50/20");
-    activeCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (opts.fromMap) activeCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 }
 
@@ -180,9 +176,22 @@ function renderInstitutions(filter = "Todas") {
   const container = document.getElementById("institutionsList");
   if (!container) return;
 
-  const filtered = filter === "Todas"
-    ? CIVIKA_INSTITUTIONS
+  const cmap = window.civikaMap;
+  if (cmap) cmap.setFilter(filter);
+
+  let filtered = filter === "Todas"
+    ? CIVIKA_INSTITUTIONS.slice()
     : CIVIKA_INSTITUTIONS.filter(item => item.categoria.toLowerCase() === filter.toLowerCase());
+
+  // Con la ubicación de la persona: la oficina más cercana primero
+  if (cmap && cmap.userPos) {
+    filtered.sort((a, b) => (cmap.distanceTo(a) ?? 1e9) - (cmap.distanceTo(b) ?? 1e9));
+  }
+  const distBadge = (inst) => {
+    const km = cmap ? cmap.distanceTo(inst) : null;
+    return km == null ? "" : `<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200">A ${cmap.formatKm(km)}</span>`;
+  };
+  const dirUrl = (inst) => (cmap ? cmap.directionsUrl(inst) : inst.mapsUrl);
 
   const colorMap = {
     red: "#DC2626",
@@ -210,7 +219,8 @@ function renderInstitutions(filter = "Todas") {
                 <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100">
                   ${inst.categoria}
                 </span>
-                <span class="text-[10px] text-slate-400 font-medium">• Verificado ${inst.verificado}</span>
+                ${distBadge(inst)}
+                ${inst.ubicacionAproximada ? '<span class="text-[10px] text-amber-700 font-semibold">Ubicación aproximada</span>' : `<span class="text-[10px] text-slate-400 font-medium">Revisado ${inst.verificado}</span>`}
               </div>
             </div>
           </div>
@@ -251,10 +261,10 @@ function renderInstitutions(filter = "Todas") {
                 onclick="event.stopPropagation(); selectInstitutionMap('${inst.id}')"
                 class="flex-1 py-2 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-blue-200 transition">
           <i data-lucide="map" class="w-3.5 h-3.5 text-blue-600"></i>
-          <span>Centrar Mapa</span>
+          <span>Ver en el mapa</span>
         </button>
 
-        <a href="${inst.mapsUrl}" target="_blank" rel="noopener noreferrer" 
+        <a href="${dirUrl(inst)}" target="_blank" rel="noopener noreferrer" 
            onclick="event.stopPropagation();"
            class="flex-1 py-2 px-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
           <i data-lucide="navigation" class="w-3.5 h-3.5"></i>
