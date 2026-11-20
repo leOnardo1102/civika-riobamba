@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CIVIKA - Controlador Principal GovTech (Estándares GOV.UK, LifeSG y Bürokratt)
  * Hackathon INNOVAiLAB UNACH 2026 - Riobamba, Ecuador
  * Módulos integrados:
@@ -2316,7 +2316,7 @@ class CivikaApp {
       <head>
         <meta charset="UTF-8">
         <title>Cívika Riobamba - ${step.nombre}</title>
-        <script src="js/vendor/tailwindcss.js"></script>
+        <script src="${new URL('js/vendor/tailwindcss.js', location.href).href}"></script>
         <style>
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; padding: 24px; }
           .official-document-sheet { max-width: 720px; margin: 0 auto; background: white; padding: 32px; border: 1px solid #cbd5e1; border-radius: 12px; position: relative; }

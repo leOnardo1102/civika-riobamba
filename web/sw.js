@@ -1,5 +1,5 @@
-/* Cívika – Service Worker: guarda la app en el equipo para que funcione sin internet */
-const CACHE = "civika-v2026-11-19";
+﻿/* CÃ­vika â€“ Service Worker: guarda la app en el equipo para que funcione sin internet */
+const CACHE = "civika-v2026-11-20a";
 const ASSETS = [
   "./",
   "./index.html",
@@ -15,6 +15,12 @@ const ASSETS = [
   "./js/features.js",
   "./js/ai_bridge.js",
   "./js/pdf.js",
+  "./js/map.js",
+  "./js/vendor/leaflet/leaflet.js",
+  "./js/vendor/leaflet/leaflet.css",
+  "./js/vendor/leaflet/images/layers.png",
+  "./js/vendor/leaflet/images/layers-2x.png",
+  "./data/capas/capas.json",
   "./js/vendor/jspdf.umd.min.js",
   "./js/vendor/tailwindcss.js",
   "./js/vendor/lucide.min.js",

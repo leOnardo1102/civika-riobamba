@@ -814,6 +814,7 @@
       if (previous === "screen-officer" && screenId !== "screen-officer") civikaOfficer.stopCamera();
       if (screenId === "screen-renewals") civikaRenewals.render();
       if (screenId === "screen-unified-forms") civikaUI.placeResponsiveBlocks();
+      if (screenId === "screen-institutions" && window.civikaMap) window.civikaMap.ensure();
     },
 
     afterBusinessDocRender(biz, container) {

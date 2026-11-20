@@ -161,7 +161,15 @@
       this.font(10, "normal", C.text);
       const details = (detailLines || []).filter(Boolean).map(d => p.splitTextToSize(clean(d), CONTENT_W - 14));
       const detailH = details.reduce((a, l) => a + l.length * 4.5 + 1, 0);
+<<<<<<< HEAD
       const h = 9 + detailH;
+=======
+      // El título se ajusta al ancho disponible (deja espacio para la etiqueta de estado a la derecha)
+      this.font(10.5, "bold", C.text);
+      const titleLines = p.splitTextToSize(clean(title), CONTENT_W - 11 - 28);
+      const extraTitle = (titleLines.length - 1) * 4.6;
+      const h = 9 + detailH + extraTitle;
+>>>>>>> 410a174 (PDFs reales, copiloto IA y correcciones)
       this.ensure(h + 2);
       this.color(C.border, "draw"); p.setLineWidth(0.3);
       p.roundedRect(PAGE.m, this.y - 5, CONTENT_W, h, 2, 2, "S");
@@ -170,11 +178,19 @@
       this.font(9, "bold", [255, 255, 255]);
       p.text(String(n), PAGE.m + 5.5, this.y + 0.7, { align: "center" });
       this.font(10.5, "bold", C.text);
+<<<<<<< HEAD
       p.text(clean(title), PAGE.m + 11, this.y);
       const tag = done ? "LISTO" : na ? "NO APLICA" : "PENDIENTE";
       this.font(8, "bold", done ? C.green : na ? C.muted : C.amber);
       p.text(tag, PAGE.w - PAGE.m - 3, this.y, { align: "right" });
       let yy = this.y + 5;
+=======
+      p.text(titleLines, PAGE.m + 11, this.y);
+      const tag = done ? "LISTO" : na ? "NO APLICA" : "PENDIENTE";
+      this.font(8, "bold", done ? C.green : na ? C.muted : C.amber);
+      p.text(tag, PAGE.w - PAGE.m - 3, this.y, { align: "right" });
+      let yy = this.y + 5 + extraTitle;
+>>>>>>> 410a174 (PDFs reales, copiloto IA y correcciones)
       this.font(9.5, "normal", C.muted);
       details.forEach(l => { p.text(l, PAGE.m + 11, yy); yy += l.length * 4.5 + 1; });
       this.y += h + 2;
@@ -187,7 +203,12 @@
         this.color(C.border, "draw"); p.setLineWidth(0.3);
         p.line(PAGE.m, FOOTER_Y - 4, PAGE.w - PAGE.m, FOOTER_Y - 4);
         this.font(7.5, "normal", C.muted);
+<<<<<<< HEAD
         p.text("Información orientativa revisada en noviembre de 2026. Confirma costos y requisitos en la entidad oficial. Cívika no pide contraseñas.", PAGE.m, FOOTER_Y);
+=======
+        p.text("Información orientativa revisada en noviembre de 2026. Confirma costos y requisitos en la entidad oficial.", PAGE.m, FOOTER_Y - 0.5);
+        p.text("Cívika no pide contraseñas ni claves.", PAGE.m, FOOTER_Y + 3.5);
+>>>>>>> 410a174 (PDFs reales, copiloto IA y correcciones)
         p.text(`Página ${i} de ${total}`, PAGE.w - PAGE.m, FOOTER_Y + 4, { align: "right" });
       }
     }
@@ -291,7 +312,15 @@
     const pasos = base.pasosSecuenciales;
     const done = pasos.filter(p => a.stepsState[p.id]).length;
     const pct = Math.round((done / pasos.length) * 100);
+<<<<<<< HEAD
     const passportId = `CIV-RIO-2026-${a.selectedBusinessId.slice(0, 3).toUpperCase()}-${done}6`;
+=======
+    const passportId = `CIV-RIO-2026-${String(a.selectedBusinessId || "").slice(0, 3).toUpperCase()}-${done}${pasos.length}`;
+    const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "");
+    const parroquia = (base.parroquiasRiobamba || []).find(x => x.id === f.parroquia);
+    const parroquiaTxt = parroquia ? parroquia.nombre : (f.parroquia || "—");
+    const tenenciaTxt = f.tenenciaLocal === "propio" ? "Propio" : f.tenenciaLocal === "arrendado" ? "Arrendado" : cap(f.tenenciaLocal) || "—";
+>>>>>>> 410a174 (PDFs reales, copiloto IA y correcciones)
     const regime = typeof a.getPassportRegimeLabel === "function" ? a.getPassportRegimeLabel(biz) : "";
     const noAplica = biz.pasosNoAplicanSinLocal || [];
 
@@ -313,8 +342,13 @@
     const x = PAGE.m + qrSize + 16;
     const rows = [
       ["Giro", biz.nombre],
+<<<<<<< HEAD
       ["Parroquia", f.parroquia || "—"],
       ["Local", `${f.tenenciaLocal || "—"}${f.areaMetros ? `, ${f.areaMetros} m²` : ""}`],
+=======
+      ["Parroquia", parroquiaTxt],
+      ["Local", `${tenenciaTxt}${f.areaMetros ? `, ${f.areaMetros} m²` : ""}`],
+>>>>>>> 410a174 (PDFs reales, copiloto IA y correcciones)
       ["Cédula / RUC", f.esIdentificacionValida ? `Validada (${f.identificacionMascarada})` : "Pendiente de validar"],
       ["Régimen y ARCSA", regime],
       ["Carpeta", `${done} de ${pasos.length} pasos (${pct} %)`],

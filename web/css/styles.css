@@ -421,6 +421,59 @@ body .app-content .ring-4 { --tw-ring-offset-shadow: 0 0 #0000; box-shadow: none
 }
 body .inst-filter-btn.bg-blue-600 { background: var(--navy); border-color: var(--navy); color: #fff; }
 
+/* Mapa interactivo (Leaflet) */
+.map-frame-live { position: relative; height: 24rem; background: #E5E7EB; }
+#civikaMap { position: absolute; inset: 0; z-index: 0; font-family: inherit; }
+.map-offline { position: absolute; left: 0.75rem; right: 0.75rem; bottom: 0.75rem; z-index: 500; margin: 0;
+  background: rgba(255, 255, 255, 0.95); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.7rem; font-size: 0.78rem; color: var(--text-2); }
+.map-offline.hidden { display: none; }
+.leaflet-container img { max-width: none !important; max-height: none !important; }
+.leaflet-container { font: inherit; }
+.leaflet-control-layers, .leaflet-bar { border: 1px solid var(--border) !important; border-radius: 8px !important; box-shadow: var(--shadow-md) !important; }
+.leaflet-control-layers-expanded { padding: 0.5rem 0.75rem; font-size: 0.82rem; color: var(--text); }
+.leaflet-popup-content-wrapper { border-radius: 10px; box-shadow: var(--shadow-lg); }
+.leaflet-popup-content { margin: 0.75rem 0.9rem; }
+.civika-pin-wrap { background: transparent; border: 0; }
+.civika-pin {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  background: var(--pin); border: 2px solid #fff; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.35);
+  margin: 2px 0 0 2px;
+}
+.civika-pin span { transform: rotate(45deg); color: #fff; font-weight: 700; font-size: 13px; }
+.civika-pin-box { display: block; width: 34px; height: 42px; transform-origin: 17px 40px; transition: transform .15s ease; }
+.zoom-far .civika-pin-box { transform: scale(0.62); }
+.zoom-mid .civika-pin-box { transform: scale(0.85); }
+.zoom-near .civika-pin-box { transform: scale(1.1); }
+.civika-pin-wrap:hover .civika-pin-box { transform: scale(1.2); }
+.civika-pin-wrap.is-active .civika-pin { box-shadow: 0 0 0 4px rgba(29,78,216,.35), 0 4px 10px rgba(15,23,42,.4); animation: civikaPulse 1.4s ease-out 3; }
+@keyframes civikaPulse { 0% { box-shadow: 0 0 0 0 rgba(29,78,216,.6), 0 4px 10px rgba(15,23,42,.4); } 100% { box-shadow: 0 0 0 16px rgba(29,78,216,0), 0 4px 10px rgba(15,23,42,.4); } }
+/* Etiquetas con nombre: solo de cerca, legibles sobre mapa y satélite */
+.leaflet-tooltip.civika-label { background: rgba(255,255,255,.96); color: #0F172A; border: 1px solid rgba(15,23,42,.18); border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 650; box-shadow: 0 2px 6px rgba(15,23,42,.25); white-space: nowrap; pointer-events: none; }
+.leaflet-tooltip-right.civika-label::before { border-right-color: rgba(255,255,255,.96); }
+.zoom-far .civika-label, .zoom-mid .civika-label { display: none; }
+.civika-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; max-width: 210px; background: rgba(255,255,255,.95); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: 11px; font-weight: 600; color: var(--text-2); box-shadow: var(--shadow-md); }
+.civika-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.civika-legend i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(15,23,42,.25); }
+.civika-fs-btn { font-size: 18px !important; line-height: 30px !important; text-align: center; text-decoration: none; cursor: pointer; }
+.map-frame-live.map-fullscreen { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; z-index: 99999; border-radius: 0; border: 0; }
+body.map-is-fullscreen { overflow: hidden; }
+.leaflet-touch .leaflet-bar a { width: 36px; height: 36px; line-height: 36px; }
+.leaflet-container.on-satellite .leaflet-control-scale-line { background: rgba(255,255,255,.85); }
+@media (max-width: 640px) { .civika-legend { max-width: 150px; font-size: 10px; } }
+.civika-pop { font-size: 0.82rem; line-height: 1.45; color: var(--text); }
+.civika-pop p { margin: 0 0 0.3rem; }
+.civika-pop-cat { font-size: 0.68rem !important; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--primary); }
+.civika-pop-title { font-weight: 650; font-size: 0.9rem; }
+.civika-pop-muted { color: var(--text-3); }
+.civika-pop-dist { color: var(--success); font-weight: 600; }
+.civika-pop-warn { color: var(--warning); font-weight: 600; }
+.civika-pop-actions { display: flex; gap: 0.75rem; margin-top: 0.4rem; }
+.civika-pop-actions a { font-weight: 600; color: var(--primary); }
+.civika-pop-table { border-collapse: collapse; width: 100%; }
+.civika-pop-table th, .civika-pop-table td { text-align: left; padding: 0.15rem 0.4rem 0.15rem 0; vertical-align: top; font-size: 0.78rem; }
+.civika-pop-table th { color: var(--text-3); font-weight: 600; white-space: nowrap; }
+
 /* Modo Ventanilla */
 .scanner-frame { position: relative; aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden; background: #0B1220; }
 .scanner-frame video { width: 100%; height: 100%; object-fit: cover; }
@@ -541,6 +594,7 @@ body.drawer-open .copilot-fab { opacity: 0; pointer-events: none; }
   .modal { align-items: center; padding: 1.5rem; }
   .modal-panel { padding: 1.5rem; }
   .map-frame { height: 16rem; }
+  .map-frame-live { height: 30rem; }
   .screen-title { font-size: 1.75rem; }
 }
 
@@ -552,6 +606,7 @@ body.drawer-open .copilot-fab { opacity: 0; pointer-events: none; }
   .app-content { padding: 2rem 2rem 4rem; }
   .chat-screen { height: calc(100dvh - var(--topbar-h) - 4rem); }
   .map-frame { height: 20rem; }
+  .map-frame-live { height: 36rem; }
 
   /* El contenido generado se diseñó para 390 px: se sube la letra pequeña en pantallas grandes */
   body .app-content .text-\[9px\], body .modal .text-\[9px\] { font-size: 11px; }
