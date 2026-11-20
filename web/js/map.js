@@ -60,12 +60,12 @@
           maxZoom: 20, maxNativeZoom: 19, attribution: "© colaboradores de OpenStreetMap"
         }),
         "Satélite (Esri)": tile("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-          maxZoom: 19, maxNativeZoom: 17, attribution: "Imágenes © Esri y colaboradores"
+          maxZoom: 20, maxNativeZoom: 17, attribution: "Imágenes © Esri y colaboradores"
         })
       };
       // En satélite se añaden nombres de calles y lugares para que se entienda de lejos y de cerca
-      const labels = tile("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, maxNativeZoom: 16, pane: "overlayPane" });
-      const roads = tile("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, maxNativeZoom: 16, pane: "overlayPane", opacity: 0.9 });
+      const labels = tile("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 16, pane: "overlayPane" });
+      const roads = tile("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 16, pane: "overlayPane", opacity: 0.9 });
 
       let saved = null;
       try { saved = localStorage.getItem("civikaMapBase"); } catch (e) { /* sin almacenamiento */ }

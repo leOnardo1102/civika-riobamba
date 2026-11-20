@@ -664,104 +664,106 @@ class CivikaAssistant {
   }
 
   /**
-   * Integración Web Speech API: Text-to-Speech (Escuchar guía)
-   */
-  speakText(text, buttonEl = null) {
-    if (!("speechSynthesis" in window)) {
-      alert("Tu navegador no soporta lectura por voz (Text-to-Speech).");
-      return;
-    }
-
-    // Si ya está hablando, detener
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-      if (buttonEl) {
-        buttonEl.innerHTML = `<i data-lucide="volume-2" class="w-3 h-3"></i> <span>Escuchar guía</span>`;
-        if (window.lucide) window.lucide.createIcons();
-      }
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const esVoice = voices.find(v => v.lang.includes("es-EC") || v.lang.includes("es-419") || v.lang.includes("es-MX") || v.lang.includes("es-ES") || v.lang.startsWith("es"));
-    if (esVoice) utterance.voice = esVoice;
-    utterance.lang = "es-EC";
-    utterance.rate = 1.0;
-
-    if (buttonEl) {
-      buttonEl.innerHTML = `<i data-lucide="square" class="w-3 h-3 text-rose-600"></i> <span class="text-rose-700">Detener voz</span>`;
-      if (window.lucide) window.lucide.createIcons();
-    }
-
-    utterance.onend = () => {
-      if (buttonEl) {
-        buttonEl.innerHTML = `<i data-lucide="volume-2" class="w-3 h-3"></i> <span>Escuchar guía</span>`;
-        if (window.lucide) window.lucide.createIcons();
-      }
-    };
-
-    this.activeUtterance = utterance;
-    window.speechSynthesis.speak(utterance);
-  }
-
-  /**
-   * Integración Web Speech API: Speech-to-Text (Micrófono en es-EC / es-ES)
+   * Dictado por voz (Web Speech API, español). Muestra lo que escuchas mientras hablas,
+   * envía la pregunta al terminar y explica con claridad cualquier problema (permisos, navegador, red).
    */
   setupSpeechRecognition() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    this.SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+    this.recognition = null;
+    this.isListening = false;
+    // Si el navegador no lo soporta (p. ej. Firefox), el botón se muestra atenuado y avisa al tocarlo
+    const micBtn = document.getElementById("chatMicBtn");
+    if (micBtn && !this.SpeechRecognitionAPI) micBtn.classList.add("mic-unsupported");
+  }
 
-    this.recognition = new SpeechRecognition();
-    this.recognition.lang = "es-EC";
-    this.recognition.continuous = false;
-    this.recognition.interimResults = false;
-
-    this.recognition.onstart = () => {
-      this.isListening = true;
-      this.updateMicButtonUI(true);
-    };
-
-    this.recognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript;
-      if (transcript) {
-        const chatInput = document.getElementById("chatInput");
-        if (chatInput) chatInput.value = transcript;
-        this.processUserMessage(transcript);
-        if (chatInput) chatInput.value = "";
-      }
-    };
-
-    this.recognition.onerror = () => {
-      this.isListening = false;
-      this.updateMicButtonUI(false);
-    };
-
-    this.recognition.onend = () => {
-      this.isListening = false;
-      this.updateMicButtonUI(false);
-    };
+  voiceNotice(msg) {
+    if (typeof window.civikaToast === "function") window.civikaToast(msg);
+    else alert(msg);
   }
 
   toggleVoiceInput() {
-    if (!this.recognition) {
-      // Fallback amigable si el navegador bloquea SpeechRecognition
-      const sampleQuery = "¿Qué régimen RIMPE me toca y qué necesito para Bomberos en Riobamba?";
-      const chatInput = document.getElementById("chatInput");
-      if (chatInput) chatInput.value = sampleQuery;
-      this.processUserMessage(sampleQuery);
+    if (!this.SpeechRecognitionAPI) {
+      this.voiceNotice("Tu navegador no permite dictar por voz. Usa Google Chrome o Edge, o escribe tu pregunta.");
       return;
     }
-
+    if (!window.isSecureContext) {
+      this.voiceNotice("El dictado por voz necesita una conexión segura (https).");
+      return;
+    }
     if (this.isListening) {
-      this.recognition.stop();
-    } else {
-      try {
-        this.recognition.lang = "es-EC";
-        this.recognition.start();
-      } catch (e) {
-        this.recognition.stop();
+      try { this.recognition.stop(); } catch (e) { /* ya detenido */ }
+      return;
+    }
+    this.startVoiceInput();
+  }
+
+  startVoiceInput() {
+    // Se calla la lectura en voz alta para que el micrófono no la escuche
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nada */ }
+
+    const rec = new this.SpeechRecognitionAPI();   // instancia nueva en cada uso: más estable en Chrome/Android
+    this.recognition = rec;
+    rec.lang = "es-EC";
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+
+    const chatInput = document.getElementById("chatInput");
+    let finalText = "";
+    let sent = false;
+    let failed = false;
+    let gotAudio = false;
+
+    const send = (text) => {
+      const t = String(text || "").trim();
+      if (!t || sent) return;
+      sent = true;
+      if (chatInput) chatInput.value = "";
+      this.processUserMessage(t);
+    };
+
+    rec.onstart = () => { this.isListening = true; this.updateMicButtonUI(true); };
+    rec.onaudiostart = () => { gotAudio = true; };
+
+    rec.onresult = (event) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const r = event.results[i];
+        if (r.isFinal) finalText += r[0].transcript;
+        else interim += r[0].transcript;
       }
+      if (chatInput) chatInput.value = (finalText + interim).trim();
+    };
+
+    rec.onerror = (event) => {
+      failed = true;
+      const code = event && event.error;
+      const msgs = {
+        "not-allowed": "No hay permiso para usar el micrófono. Toca el candado de la barra de direcciones y permite el micrófono.",
+        "service-not-allowed": "El navegador bloqueó el dictado por voz. Revisa los permisos del micrófono.",
+        "audio-capture": "No se detectó ningún micrófono. Conéctalo y vuelve a intentar.",
+        "network": "El dictado necesita internet. Revisa tu conexión.",
+        "language-not-supported": "Este navegador no soporta dictado en español.",
+        "no-speech": "No te escuché. Toca el micrófono y habla de nuevo, cerca del equipo."
+      };
+      if (code !== "aborted") this.voiceNotice(msgs[code] || "No se pudo usar el dictado por voz. Escribe tu pregunta.");
+    };
+
+    rec.onend = () => {
+      this.isListening = false;
+      this.updateMicButtonUI(false);
+      const text = (finalText || (chatInput ? chatInput.value : "")).trim();
+      if (!failed && text) send(text);
+      else if (!failed && !text && gotAudio) this.voiceNotice("No te entendí. Intenta de nuevo hablando más despacio.");
+      else if (chatInput && failed) chatInput.value = text;
+    };
+
+    try {
+      rec.start();
+    } catch (e) {
+      this.isListening = false;
+      this.updateMicButtonUI(false);
+      this.voiceNotice("No se pudo iniciar el micrófono. Espera un momento e inténtalo otra vez.");
     }
   }
 
@@ -769,18 +771,14 @@ class CivikaAssistant {
     const micBtn = document.getElementById("chatMicBtn");
     const chatInput = document.getElementById("chatInput");
     if (!micBtn) return;
-
-    if (listening) {
-      micBtn.classList.add("bg-rose-600", "text-white", "animate-pulse");
-      micBtn.classList.remove("bg-slate-100", "text-slate-700");
-      if (chatInput) chatInput.placeholder = "🎙️ Escuchando tu voz (es-EC)... Habla ahora";
-    } else {
-      micBtn.classList.remove("bg-rose-600", "text-white", "animate-pulse");
-      micBtn.classList.add("bg-slate-100", "text-slate-700");
-      if (chatInput) chatInput.placeholder = "Escribe tu pregunta sobre RUC, patente, Bomberos o ARCSA…";
+    micBtn.classList.toggle("is-listening", listening);
+    micBtn.setAttribute("aria-pressed", listening ? "true" : "false");
+    micBtn.title = listening ? "Detener dictado" : "Dictar por voz";
+    if (chatInput) {
+      if (listening) { chatInput.dataset.ph = chatInput.placeholder; chatInput.placeholder = "🎙️ Te escucho… habla ahora"; }
+      else chatInput.placeholder = chatInput.dataset.ph || "Escribe tu pregunta sobre RUC, patente, Bomberos o ARCSA…";
     }
   }
-
   showTypingIndicator() {
     const chatContainer = document.getElementById("chatMessages");
     if (!chatContainer) return;
