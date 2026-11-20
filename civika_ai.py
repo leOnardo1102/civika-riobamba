@@ -157,3 +157,62 @@ def ask(config: AIConfig, question: str, context: str, history: list | None = No
     if not text:
         return {"ok": False, "text": "", "error": "respuesta_vacia"}
     return {"ok": True, "text": text, "error": None}
+
+MAX_AUDIO_BYTES = 4_000_000  # ~ unos minutos de audio comprimido; las preguntas son de pocos segundos
+
+
+def transcribe(config: AIConfig, audio: bytes, mime: str = "audio/webm", timeout: int = 30) -> dict:
+    """Convierte la voz del ciudadano en texto. Devuelve {"ok", "text", "error"}."""
+    if not config.enabled:
+        return {"ok": False, "text": "", "error": "sin_clave"}
+    if not audio or len(audio) < 800:
+        return {"ok": False, "text": "", "error": "audio_vacio"}
+    if len(audio) > MAX_AUDIO_BYTES:
+        return {"ok": False, "text": "", "error": "audio_largo"}
+    if config.mock:
+        return {"ok": True, "text": "¿Qué necesito para el permiso de Bomberos?", "error": None}
+
+    mime = (mime or "audio/webm").split(";")[0].strip() or "audio/webm"
+    ext = {"audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/wav": "wav"}.get(mime, "webm")
+
+    try:
+        if config.provider == "groq":
+            resp = requests.post(
+                f"{config.base_url}/audio/transcriptions",
+                headers={"Authorization": f"Bearer {config.api_key}"},
+                files={"file": (f"voz.{ext}", audio, mime)},
+                data={"model": "whisper-large-v3-turbo", "language": "es", "response_format": "json", "temperature": "0"},
+                timeout=timeout,
+            )
+        else:  # Gemini (API nativa, admite audio en línea)
+            import base64
+            resp = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{config.model}:generateContent",
+                headers={"x-goog-api-key": config.api_key, "Content-Type": "application/json"},
+                json={"contents": [{"parts": [
+                    {"text": "Transcribe literalmente este audio en español. Responde solo con la transcripción, sin comillas."},
+                    {"inline_data": {"mime_type": mime, "data": base64.b64encode(audio).decode()}},
+                ]}]},
+                timeout=timeout,
+            )
+    except requests.RequestException:
+        return {"ok": False, "text": "", "error": "sin_conexion"}
+
+    if resp.status_code == 429:
+        return {"ok": False, "text": "", "error": "limite"}
+    if resp.status_code in (401, 403):
+        return {"ok": False, "text": "", "error": "clave_invalida"}
+    if resp.status_code >= 400:
+        return {"ok": False, "text": "", "error": f"http_{resp.status_code}"}
+    try:
+        data = resp.json()
+        if config.provider == "groq":
+            text = data.get("text", "")
+        else:
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+        return {"ok": False, "text": "", "error": "respuesta_invalida"}
+    text = (text or "").strip()
+    if not text:
+        return {"ok": False, "text": "", "error": "respuesta_vacia"}
+    return {"ok": True, "text": text[:MAX_QUESTION_CHARS], "error": None}

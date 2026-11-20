@@ -74,7 +74,19 @@ request = civika_component(
 # Nueva pregunta del Copiloto → consultar a la IA y devolver la respuesta
 if isinstance(request, dict) and request.get("id") and request.get("id") != state.ai_last_id:
     state.ai_last_id = request["id"]
-    if state.ai_count >= MAX_QUESTIONS_PER_SESSION:
+    if request.get("audio"):
+        # Dictado por voz: se convierte el audio en texto (la clave sigue en el servidor)
+        import base64
+        if state.ai_count >= MAX_QUESTIONS_PER_SESSION:
+            result = {"ok": False, "text": "", "error": "limite_sesion"}
+        else:
+            state.ai_count += 1
+            try:
+                audio_bytes = base64.b64decode(request["audio"], validate=False)
+            except Exception:
+                audio_bytes = b""
+            result = civika_ai.transcribe(ai_config, audio_bytes, request.get("mime", "audio/webm"))
+    elif state.ai_count >= MAX_QUESTIONS_PER_SESSION:
         result = {"ok": False, "text": "", "error": "limite_sesion"}
     else:
         state.ai_count += 1

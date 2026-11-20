@@ -104,6 +104,19 @@
       });
     },
 
+    // Dictado por voz: envía el audio a Python, que lo convierte en texto
+    transcribe(base64, mime) {
+      return new Promise((resolve, reject) => {
+        if (!this.enabled) { reject(new Error("ia_no_disponible")); return; }
+        const id = `${Date.now()}-${++seq}`;
+        const timer = setTimeout(() => {
+          if (pending.has(id)) { pending.delete(id); reject(new Error("tiempo_agotado")); }
+        }, 40000);
+        pending.set(id, { resolve, reject, timer });
+        send("streamlit:setComponentValue", { value: { id, audio: base64, mime }, dataType: "json" });
+      });
+    },
+
     remember(role, text) {
       this.history.push({ role, text: String(text || "").slice(0, 800) });
       if (this.history.length > 12) this.history = this.history.slice(-12);

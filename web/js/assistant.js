@@ -682,19 +682,140 @@ class CivikaAssistant {
   }
 
   toggleVoiceInput() {
-    if (!this.SpeechRecognitionAPI) {
-      this.voiceNotice("Tu navegador no permite dictar por voz. Usa Google Chrome o Edge, o escribe tu pregunta.");
+    if (this.isListening) {
+      if (this.recorder) this.stopRecordedDictation();
+      else { try { this.recognition.stop(); } catch (e) { /* ya detenido */ } }
       return;
     }
+    if (this.isTranscribing) return;
     if (!window.isSecureContext) {
       this.voiceNotice("El dictado por voz necesita una conexión segura (https).");
       return;
     }
-    if (this.isListening) {
-      try { this.recognition.stop(); } catch (e) { /* ya detenido */ }
+    // Dentro de Streamlit (con IA) se graba el audio y el servidor lo convierte en texto:
+    // es más confiable que el reconocimiento del navegador, que falla dentro de marcos incrustados.
+    if (window.civikaAI && window.civikaAI.enabled && window.MediaRecorder && navigator.mediaDevices) {
+      this.startRecordedDictation();
       return;
     }
-    this.startVoiceInput();
+    if (!this.SpeechRecognitionAPI) {
+      this.voiceNotice("Tu navegador no permite dictar por voz. Usa Google Chrome o Edge, o escribe tu pregunta.");
+      return;
+    }
+    // Primero se pide el micrófono de forma explícita: así el navegador muestra el permiso y sabemos la causa exacta si falla
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => { stream.getTracks().forEach(t => t.stop()); this.startVoiceInput(); })
+        .catch((err) => {
+          const n = err && err.name;
+          if (n === "NotFoundError" || n === "DevicesNotFoundError") this.voiceNotice("No se detectó ningún micrófono en este equipo.");
+          else if (n === "NotReadableError") this.voiceNotice("El micrófono está siendo usado por otra aplicación. Ciérrala e inténtalo de nuevo.");
+          else this.voiceNotice("El navegador no dio acceso al micrófono (" + (n || "error") + "). Permite el micrófono en el candado de la barra de direcciones. Si abriste la app dentro de otra página, ábrela en su propia pestaña.");
+        });
+    } else {
+      this.startVoiceInput();
+    }
+  }
+  // ---- Dictado por grabación + transcripción en el servidor (Streamlit) ----
+  async startRecordedDictation() {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nada */ }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch (err) {
+      const n = err && err.name;
+      this.voiceNotice(n === "NotFoundError" ? "No se detectó ningún micrófono en este equipo."
+        : n === "NotReadableError" ? "El micrófono está siendo usado por otra aplicación."
+        : "El navegador no dio acceso al micrófono. Permítelo en el candado de la barra de direcciones.");
+      return;
+    }
+
+    const mimes = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+    const mime = mimes.find(m => window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(m)) || "";
+    const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const chunks = [];
+    this.recorder = rec;
+    this.recStream = stream;
+
+    // Detector de silencio: se detiene solo cuando terminas de hablar
+    let ctx = null, analyser = null, timer = null;
+    let spoke = false, silentSince = Date.now();
+    const startedAt = Date.now();
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC();
+      const src = ctx.createMediaStreamSource(stream);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      src.connect(analyser);
+      const buf = new Uint8Array(analyser.fftSize);
+      timer = setInterval(() => {
+        analyser.getByteTimeDomainData(buf);
+        let peak = 0;
+        for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128));
+        const now = Date.now();
+        if (peak > 14) { spoke = true; silentSince = now; }
+        if (spoke && now - silentSince > 1400) this.stopRecordedDictation();
+        else if (!spoke && now - startedAt > 7000) this.stopRecordedDictation();
+        else if (now - startedAt > 20000) this.stopRecordedDictation();
+      }, 120);
+    } catch (e) { /* sin detector: se detiene con un toque o a los 20 s */ setTimeout(() => this.stopRecordedDictation(), 20000); }
+
+    rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    rec.onstop = async () => {
+      clearInterval(timer);
+      try { if (ctx) ctx.close(); } catch (e) { /* nada */ }
+      stream.getTracks().forEach(t => t.stop());
+      this.recorder = null; this.recStream = null;
+      this.isListening = false;
+      this.updateMicButtonUI(false);
+      if (!spoke || !chunks.length) { this.voiceNotice("No te escuché. Toca el micrófono y habla cerca del equipo."); return; }
+      const blob = new Blob(chunks, { type: rec.mimeType || mime || "audio/webm" });
+      await this.transcribeBlob(blob);
+    };
+
+    rec.start(250);
+    this.isListening = true;
+    this.updateMicButtonUI(true);
+  }
+
+  stopRecordedDictation() {
+    const rec = this.recorder;
+    if (rec && rec.state !== "inactive") { try { rec.stop(); } catch (e) { /* ya detenido */ } }
+  }
+
+  async transcribeBlob(blob) {
+    const chatInput = document.getElementById("chatInput");
+    const micBtn = document.getElementById("chatMicBtn");
+    this.isTranscribing = true;
+    if (micBtn) micBtn.disabled = true;
+    const prevPh = chatInput ? chatInput.placeholder : "";
+    if (chatInput) chatInput.placeholder = "✍️ Escribiendo lo que dijiste…";
+    try {
+      const b64 = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result).split(",")[1] || "");
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      });
+      const res = await window.civikaAI.transcribe(b64, blob.type || "audio/webm");
+      if (res && res.ok && res.text) {
+        this.processUserMessage(res.text.trim());
+      } else {
+        const e = res && res.error;
+        this.voiceNotice(e === "limite" ? "Se acabó la cuota gratuita de voz por ahora. Escribe tu pregunta."
+          : e === "limite_sesion" ? "Llegaste al límite de preguntas de esta sesión."
+          : e === "clave_invalida" ? "La clave de la IA no es válida (revisa los Secrets de Streamlit)."
+          : e === "audio_vacio" || e === "respuesta_vacia" ? "No te entendí. Intenta de nuevo hablando más despacio."
+          : "No se pudo convertir tu voz en texto. Escribe tu pregunta.");
+      }
+    } catch (err) {
+      this.voiceNotice("No se pudo convertir tu voz en texto. Escribe tu pregunta.");
+    } finally {
+      this.isTranscribing = false;
+      if (micBtn) micBtn.disabled = false;
+      if (chatInput) chatInput.placeholder = prevPh || "Escribe tu pregunta sobre RUC, patente, Bomberos o ARCSA…";
+    }
   }
 
   startVoiceInput() {
