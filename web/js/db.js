@@ -20,7 +20,9 @@ const CIVIKA_DB_CONFIG = {
     draftForm: "civika_govuk_draft_v2",
     passportsHistory: "civika_qr_passports_v2",
     anonymousMetrics: "civika_anon_metrics_v2",
-    easyReadMode: "civika_easy_read_mode"
+    easyReadMode: "civika_easy_read_mode",
+    stageProgress: "civika_stage_progress_v1",
+    prevalidationInbox: "civika_prevalidation_inbox_v1"
   }
 };
 
@@ -45,6 +47,7 @@ class CivikaRepository {
 
     await this.checkCloudConnection();
     await this.ensureSeedMetrics();
+    await this.ensureSeedPrevalidationInbox();
     this.updateFooterBadge();
     return this;
   }
@@ -216,6 +219,125 @@ class CivikaRepository {
 
   async loadDiagnosticAnswers() {
     return this.getItem(this.config.storageKeys.diagnosticAnswers, {});
+  }
+
+  /**
+   * Estado de avance por etapas de cada trámite:
+   * 1. diagnostico, 2. checklist, 3. antiRechazo, 4. planB
+   */
+  async saveStageProgress(stageProgressMap) {
+    return this.setItem(this.config.storageKeys.stageProgress, stageProgressMap || {});
+  }
+
+  async loadStageProgress(defaultMap = {}) {
+    const saved = await this.getItem(this.config.storageKeys.stageProgress, {});
+    return { ...defaultMap, ...(saved || {}) };
+  }
+
+  async setStepStageState(stepId, stageKey, completed) {
+    const validStages = ["diagnostico", "checklist", "antiRechazo", "planB"];
+    if (!stepId || !validStages.includes(stageKey)) return null;
+    const all = await this.loadStageProgress();
+    const current = {
+      diagnostico: false,
+      checklist: false,
+      antiRechazo: false,
+      planB: false,
+      ...(all[stepId] || {})
+    };
+    current[stageKey] = Boolean(completed);
+    current.updatedAt = new Date().toISOString();
+    all[stepId] = current;
+    await this.saveStageProgress(all);
+    return all;
+  }
+
+  /**
+   * Bandeja simulada de expedientes enviados a Pre-Validación Remota bajo convenio
+   * Regla estricta: solo metadatos no sensibles (ID local, giro, parroquia, conteo X/Y, estado)
+   */
+  async ensureSeedPrevalidationInbox() {
+    const existing = await this.getItem(this.config.storageKeys.prevalidationInbox, null);
+    if (Array.isArray(existing) && existing.length > 0) return existing;
+
+    const seedInbox = [
+      {
+        id: "EXP-RIO-2026-014",
+        giroId: "cafeteria",
+        giroNombre: "Cafetería o Pequeño Café",
+        parroquia: "Maldonado",
+        checklistConteo: "5/6",
+        estado: "Visto Bueno",
+        observacion: "Expediente pre-validado sin observaciones. Listo para Ventanilla Única con Pasaporte QR.",
+        fechaEnvio: "20/11/2026, 09:15"
+      },
+      {
+        id: "EXP-RIO-2026-021",
+        giroId: "tienda_ropa",
+        giroNombre: "Tienda de Ropa y Calzado",
+        parroquia: "Lizarzaburu",
+        checklistConteo: "4/6",
+        estado: "Observado",
+        observacion: "Falta adjuntar Informe de Compatibilidad de Uso de Suelo (ICUS) y confirmar recarga vigente del extintor PQS.",
+        fechaEnvio: "20/11/2026, 11:40"
+      }
+    ];
+
+    await this.setItem(this.config.storageKeys.prevalidationInbox, seedInbox);
+    return seedInbox;
+  }
+
+  async getPrevalidationInbox() {
+    return this.ensureSeedPrevalidationInbox();
+  }
+
+  async submitToPrevalidationInbox(metadata) {
+    const inbox = await this.ensureSeedPrevalidationInbox();
+    const allowedStates = ["Pendiente", "Visto Bueno", "Observado"];
+    const estado = allowedStates.includes(metadata?.estado) ? metadata.estado : "Pendiente";
+    const id = metadata?.id || `EXP-RIO-2026-${Date.now().toString().slice(-3)}`;
+
+    const record = {
+      id,
+      giroId: String(metadata?.giroId || "tienda_ropa"),
+      giroNombre: String(metadata?.giroNombre || "Comercio Minorista"),
+      parroquia: String(metadata?.parroquia || "Maldonado"),
+      checklistConteo: String(metadata?.checklistConteo || "0/6"),
+      estado,
+      observacion: String(
+        metadata?.observacion ||
+        "Recibido en bandeja de pre-validación bajo convenio. En espera de revisión de requisitos no sensibles."
+      ),
+      fechaEnvio: metadata?.fechaEnvio || new Date().toLocaleString("es-EC", { dateStyle: "short", timeStyle: "short" })
+    };
+
+    const updated = [record, ...inbox.filter(item => item.id !== record.id)].slice(0, 20);
+    await this.setItem(this.config.storageKeys.prevalidationInbox, updated);
+
+    await this.recordAnonymousMetric({
+      parroquia: record.parroquia,
+      actividad: record.giroNombre,
+      evento: "prevalidacion_enviada"
+    });
+
+    return record;
+  }
+
+  async updatePrevalidationStatus(expedienteId, nuevoEstado, observacion = "") {
+    const allowedStates = ["Pendiente", "Visto Bueno", "Observado"];
+    if (!allowedStates.includes(nuevoEstado)) return null;
+    const inbox = await this.ensureSeedPrevalidationInbox();
+    const updated = inbox.map(item => {
+      if (item.id !== expedienteId) return item;
+      return {
+        ...item,
+        estado: nuevoEstado,
+        observacion: observacion ? String(observacion) : item.observacion,
+        actualizadoEn: new Date().toLocaleString("es-EC", { dateStyle: "short", timeStyle: "short" })
+      };
+    });
+    await this.setItem(this.config.storageKeys.prevalidationInbox, updated);
+    return updated.find(item => item.id === expedienteId) || null;
   }
 
   /**

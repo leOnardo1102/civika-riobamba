@@ -61,14 +61,23 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Riesgo Bajo (Extintor PQS 10 lbs vigente y señalética)",
       regimenRecomendado: "RIMPE Negocio Popular (si ventas anuales <= $20,000) o RIMPE Emprendedor ($20,001 a $300,000)",
       requiereArcsa: "No requiere permiso sanitario ARCSA (comercio textil).",
+      entidadesInvolucradas: ["SRI", "Cuerpo de Bomberos de Riobamba", "GAD Municipal de Riobamba"],
       documentacionRequerida: [
-        "Certificado de RUC en estado ACTIVO con actividad CIIU G4771 y dirección exacta del local en Riobamba.",
-        "Informe Favorable de Compatibilidad de Uso de Suelo (ICUS - PUGS GAD Riobamba).",
-        "Permiso Anual de Funcionamiento del Cuerpo de Bomberos de Riobamba (Inspección de Riesgo Bajo).",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba (Solvencia municipal vigente).",
-        "Formulario Oficial de Declaración de Patente Municipal Anual y solicitud de LUF.",
-        "Contrato de arrendamiento legalizado o comprobante de pago del Impuesto Predial del año en curso.",
-        "Cédula de identidad y certificado de votación vigentes del titular."
+        "Certificado de RUC en estado ACTIVO con actividad CIIU G4771 y dirección exacta de tu boutique o zapatería en Riobamba.",
+        "Informe Favorable de Compatibilidad de Uso de Suelo (ICUS - PUGS GAD Riobamba) para comercio minorista textil.",
+        "Permiso Anual de Funcionamiento del Cuerpo de Bomberos de Riobamba (extintor PQS 10 lbs y señalética de salida).",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba (solvencia tributaria del titular del local).",
+        "Formulario Oficial de Declaración de Patente Municipal Anual y solicitud de LUF para venta de vestuario/calzado.",
+        "Contrato de arrendamiento del local comercial o comprobante de pago del Impuesto Predial vigente.",
+        "Original y copia legible de cédula y certificado de votación para apertura de expediente en Ventanilla Única."
+      ],
+      alertasAntiRechazo: [
+        "Si exhibes mercadería en veredas o portales, Control Municipal puede retener el permiso LUF por ocupación indebida de vía pública.",
+        "Los letreros luminosos o rótulos exteriores en el Centro Histórico deben ajustarse a la ordenanza patrimonial antes de instalarse."
+      ],
+      recomendacionesEspecificas: [
+        "Si vendes ropa o calzado importado, conserva las facturas de compra o declaraciones aduaneras para respaldar tu inventario ante el SRI.",
+        "Verifica que el manómetro del extintor PQS esté en zona verde y visible junto a los probadores o bodega."
       ],
       advertenciaSector: "Si el local está en el Centro Histórico de Riobamba (parroquias Maldonado/Velasco/Veloz), la rotulación exterior debe respetar la ordenanza de patrimonio cultural."
     },
@@ -84,15 +93,24 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Riesgo Bajo a Medio (Extintor PQS 10 lbs / CO2, revisión de GLP, detector de humo)",
       regimenRecomendado: "RIMPE Negocio Popular (<= $20,000) o RIMPE Emprendedor ($20,001 a $300,000)",
       requiereArcsa: "Verificación de tipología ARCSA: Fuentes de soda/panaderías tradicionales están exentas de permiso físico por simplificación; restaurantes o procesadores tienen tarifa $0.00 si están categorizados como microempresa o artesano, pero cumplen control higiénico.",
+      entidadesInvolucradas: ["SRI", "Cuerpo de Bomberos de Riobamba", "GAD Municipal de Riobamba", "ARCSA Zonal 3"],
       documentacionRequerida: [
-        "Certificado de RUC en estado ACTIVO (CIIU I5610: Preparación y servicio de café y alimentos).",
-        "Informe de Compatibilidad de Uso de Suelo Favorable (GAD Riobamba).",
-        "Permiso Anual del Cuerpo de Bomberos de Riobamba (Inspección de instalaciones eléctricas y cilindros/tubería de gas GLP).",
-        "Cumplimiento Sanitario ARCSA (Registro en plataforma de permisos o certificado de exoneración/microempresa según tipología).",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba.",
-        "Formulario Oficial de Declaración de Patente Municipal y LUF.",
-        "Contrato de Arrendamiento o pago del Impuesto Predial del local.",
-        "Cédula de identidad y certificado de votación."
+        "Certificado de RUC en estado ACTIVO (CIIU I5610: Preparación y servicio de café, postres y bebidas).",
+        "Informe de Compatibilidad de Uso de Suelo Favorable para expendio de alimentos (GAD Riobamba).",
+        "Permiso Anual del Cuerpo de Bomberos de Riobamba (inspección de cafetera/horno, instalaciones eléctricas y gas GLP).",
+        "Cumplimiento Sanitario ARCSA: registro en línea o certificado de exoneración/microempresa según tipología de cafetería.",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba para habilitar la tasa de patente alimentaria.",
+        "Formulario Oficial de Declaración de Patente Municipal y LUF para establecimientos de bebidas y alimentos.",
+        "Contrato de arrendamiento con autorización de uso de cocina o pago del Impuesto Predial.",
+        "Cédula y papeleta de votación vigentes del representante de la cafetería."
+      ],
+      alertasAntiRechazo: [
+        "En cafeterías con cocina o plancha, Bomberos rechaza la inspección si el cilindro de GLP está dentro del área cerrada sin ventilación o manguera certificada.",
+        "No presentar el comprobante de categorización o exoneración ARCSA retrasa la emisión de la LUF en Ventanilla Única."
+      ],
+      recomendacionesEspecificas: [
+        "Instala una trampa de grasas debajo del lavaplatos antes de la inspección municipal para evitar sanciones en alcantarillado.",
+        "Mantén lácteos, cremas y repostería refrigerados con registro visible de temperatura y fecha de elaboración."
       ],
       advertenciaSector: "Es obligatorio contar con trampa de grasas en el área de lavado para evitar obstrucciones y sanciones ambientales en la red de alcantarillado de Riobamba."
     },
@@ -108,15 +126,24 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Riesgo Bajo (Extintor PQS 10 lbs vigente, señalética y botiquín)",
       regimenRecomendado: "RIMPE Negocio Popular (<= $20,000) o RIMPE Emprendedor",
       requiereArcsa: "Exento de permiso de funcionamiento ARCSA para tiendas de abarrotes y micromercados según resoluciones de simplificación, pero obligatorio verificar que todo producto procesado exhibido tenga Notificación Sanitaria vigente y fecha de caducidad al día.",
+      entidadesInvolucradas: ["SRI", "Cuerpo de Bomberos de Riobamba", "GAD Municipal de Riobamba", "ARCSA (control en percha)"],
       documentacionRequerida: [
-        "Hoja de RUC activo bajo régimen RIMPE (Negocio Popular o Emprendedor, CIIU G4711).",
-        "Certificado de Compatibilidad de Uso de Suelo PUGS (GAD Riobamba).",
-        "Permiso Anual de Funcionamiento del Cuerpo de Bomberos de Riobamba.",
-        "Verificación ARCSA de productos en percha con Notificación Sanitaria vigente.",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba.",
-        "Formulario Oficial de Declaración de Patente Municipal.",
-        "Contrato de Arrendamiento o Comprobante de Impuesto Predial.",
-        "Cédula de identidad y certificado de votación."
+        "Hoja de RUC activo bajo régimen RIMPE (Negocio Popular o Emprendedor, CIIU G4711 para víveres y abarrotes).",
+        "Certificado de Compatibilidad de Uso de Suelo PUGS (GAD Riobamba) para comercio de primera necesidad.",
+        "Permiso Anual de Funcionamiento del Cuerpo de Bomberos de Riobamba (extintor PQS, pasillos despejados y botiquín).",
+        "Control sanitario en perchas: todos los enlatados, lácteos y bebidas deben exhibir Notificación Sanitaria ARCSA vigente.",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba correspondiente al contribuyente del micromercado.",
+        "Formulario Oficial de Declaración de Patente Municipal con detalle de inventario inicial.",
+        "Contrato de arrendamiento del local o comprobante predial actualizado.",
+        "Copia legible de cédula y certificado de votación del propietario del micromercado."
+      ],
+      alertasAntiRechazo: [
+        "Exhibir productos sin Notificación Sanitaria o caducados genera decomiso inmediato en operativos conjuntos de ARCSA y Comisaría.",
+        "Vender bebidas alcohólicas cerca de escuelas o colegios fuera de distancia permitida provoca negativa directa de LUF."
+      ],
+      recomendacionesEspecificas: [
+        "Separa físicamente los productos de limpieza e insecticidas de los víveres y panadería para aprobar controles sanitarios.",
+        "Lleva un registro semanal de fechas de vencimiento en lácteos y embutidos para evitar multas."
       ],
       advertenciaSector: "Si comercializa bebidas alcohólicas para llevar, debe respetar estrictamente los horarios permitidos y las distancias mínimas respecto a unidades educativas."
     },
@@ -132,14 +159,23 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Riesgo Bajo (Oficina administrativa o consultorio con extintor y señalética)",
       regimenRecomendado: "RÉGIMEN GENERAL (Por ley tributaria del SRI, los servicios profesionales con título están EXCLUIDOS del régimen RIMPE, incluso si facturan menos de $20,000 al año).",
       requiereArcsa: "No aplica ARCSA para oficinas jurídicas/técnicas (si es consultorio médico/odontológico, requiere permiso de ACESS).",
+      entidadesInvolucradas: ["SRI (Régimen General)", "GAD Municipal de Riobamba", "Cuerpo de Bomberos de Riobamba", "ACESS (solo consultorios de salud)"],
       documentacionRequerida: [
-        "RUC activo en RÉGIMEN GENERAL con la actividad profesional específica.",
-        "Registro del Título Profesional en la SENESCYT.",
-        "Certificado de Compatibilidad de Uso de Suelo (si habilita oficina o consultorio físico con atención al público).",
-        "Permiso del Cuerpo de Bomberos de Riobamba del local/oficina física.",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba.",
-        "Formulario Oficial de Patente Municipal (Liquidación conforme ordenanza para libre ejercicio o local).",
-        "Cédula de identidad y certificado de votación."
+        "RUC activo en RÉGIMEN GENERAL con la actividad profesional específica (excluido de RIMPE por normativa SRI).",
+        "Registro impreso del Título Profesional en la plataforma de la SENESCYT.",
+        "Certificado de Compatibilidad de Uso de Suelo si habilita oficina o consultorio físico con atención presencial.",
+        "Permiso del Cuerpo de Bomberos de Riobamba de la oficina o consultorio (extintor y señalética).",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba como profesional en libre ejercicio.",
+        "Formulario Oficial de Patente Municipal (liquidación sujeta a ordenanza municipal vigente para servicios profesionales).",
+        "Cédula de identidad y certificado de votación vigentes del profesional titular."
+      ],
+      alertasAntiRechazo: [
+        "Inscribir el RUC como RIMPE Negocio Popular teniendo título profesional genera inconsistencias tributarias y multas por no declarar IVA.",
+        "Abrir un consultorio médico u odontológico sin permiso previo de ACESS expone a clausura inmediata."
+      ],
+      recomendacionesEspecificas: [
+        "Configura tu firma electrónica y facturación electrónica desde el día 1 en el SRI, ya que en Régimen General no aplican notas de venta.",
+        "Si trabajas en oficinas compartidas (coworking), confirma con el administrador si el Uso de Suelo del edificio cubre tu actividad."
       ],
       advertenciaSector: "¡Error crítico frecuente! Ningún profesional en libre ejercicio entra en RIMPE Negocio Popular. Debes emitir factura electrónica y declarar IVA en Régimen General."
     },
@@ -155,14 +191,23 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Riesgo Medio a Alto (Manejo de inflamables, aceites, baterías: requiere extintores PQS y CO2, bandeja antiderrames/arena)",
       regimenRecomendado: "RIMPE Negocio Popular, RIMPE Emprendedor o Régimen Artesanal (si posee calificación JNDA/MIPRO)",
       requiereArcsa: "No requiere permiso sanitario ARCSA (requiere control ambiental municipal de aceites usados).",
+      entidadesInvolucradas: ["SRI", "GAD Municipal (Uso de Suelo y Patente)", "Cuerpo de Bomberos de Riobamba", "MAE / SUIA (gestión ambiental)"],
       documentacionRequerida: [
-        "Certificado de RUC activo (Actividad CIIU G4520: Mantenimiento electromecánico o automotriz).",
-        "Informe Favorable de Compatibilidad de Uso de Suelo PUGS (INDISPENSABLE obtenerlo ANTES de alquilar el local; prohibido en zonas residenciales exclusivas).",
-        "Permiso del Cuerpo de Bomberos de Riobamba (Inspección técnica de extintores PQS/CO2, instalaciones eléctricas entubadas y contenedor de arena).",
-        "Gestión ambiental: los aceites lubricantes usados son desechos peligrosos; regístrate como generador en el SUIA (Ministerio del Ambiente) si corresponde y entrega aceites y filtros a un gestor ambiental autorizado (guarda los comprobantes).",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba.",
-        "Formulario de Solicitud de Patente Municipal y LUF.",
-        "Contrato de arrendamiento o pago de impuesto predial."
+        "Certificado de RUC activo (Actividad CIIU G4520: Mantenimiento mecánico, eléctrico o lubricadora).",
+        "Informe Favorable de Compatibilidad de Uso de Suelo PUGS (indispensable antes de arrendar; restringido en zonas residenciales).",
+        "Permiso del Cuerpo de Bomberos de Riobamba (riesgo medio/alto: extintores PQS y CO2, cableado entubado y arena antiderrames).",
+        "Registro ambiental (SUIA) si generas aceites usados y contrato o actas de entrega con gestor ambiental autorizado.",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba del titular del taller.",
+        "Formulario de Solicitud de Patente Municipal y LUF para taller automotriz.",
+        "Contrato de arrendamiento con cláusula para taller mecánico o pago de Impuesto Predial."
+      ],
+      alertasAntiRechazo: [
+        "Firmar contrato de arriendo en zona residencial sin validar antes el ICUS resulta en negativa definitiva de LUF por ruido e impacto.",
+        "Verter aceites quemados o filtros en el alcantarillado municipal acarrea multas ambientales severas y cierre del local."
+      ],
+      recomendacionesEspecificas: [
+        "Solicita primero el Uso de Suelo (Paso 3) con la clave catastral antes de adecuar fosas, elevadores o compresores.",
+        "Si cuentas con calificación artesanal en mecánica automotriz (JNDA), preséntala para tramitar la exoneración de Patente."
       ],
       advertenciaSector: "Jamás firmes contrato de arriendo para un taller mecánico en Riobamba sin antes pedir el Informe de Compatibilidad de Uso de Suelo (Paso 3) con la clave catastral."
     },
@@ -178,15 +223,24 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Riesgo Bajo a Medio (según maquinaria o materia prima utilizada)",
       regimenRecomendado: "Régimen con Calificación Artesanal registrada en el RUC (Facturación tarifa 0% IVA en bienes/servicios de su rama artesanal)",
       requiereArcsa: "Si elabora alimentos o cosméticos artesanales: Exoneración del 100% en la tasa del permiso de funcionamiento ARCSA ($0.00) presentando su calificación artesanal de la JNDA o MIPRO.",
+      entidadesInvolucradas: ["JNDA / MIPRO", "SRI", "GAD Municipal de Riobamba", "Cuerpo de Bomberos de Riobamba", "ARCSA (si produce alimentos/cosméticos)"],
       documentacionRequerida: [
         "Calificación Artesanal VIGENTE emitida por la Junta Nacional de Defensa del Artesano (JNDA) o el MIPRO.",
         "Hoja de RUC actualizada donde conste explícitamente la condición de Artesano Calificado.",
         "Solicitud y Formulario de Exoneración del Impuesto de Patente Municipal amparado en el Art. 550 del COOTAD.",
-        "Informe de Compatibilidad de Uso de Suelo del taller en Riobamba.",
-        "Permiso Anual de Funcionamiento del Cuerpo de Bomberos de Riobamba.",
-        "Permiso o Notificación ARCSA con tarifa $0.00 (únicamente si elabora alimentos procesados o cosméticos).",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba.",
-        "Cédula de identidad y certificado de votación."
+        "Informe de Compatibilidad de Uso de Suelo del taller artesanal en Riobamba.",
+        "Permiso Anual de Funcionamiento del Cuerpo de Bomberos de Riobamba acorde al tipo de maquinaria.",
+        "Permiso o Notificación ARCSA con tasa $0.00 (únicamente si elaboras alimentos procesados o cosméticos artesanales).",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba (requerido aunque el impuesto de patente sea exonerado).",
+        "Documento de identidad y certificado de votación del maestro de taller calificado."
+      ],
+      alertasAntiRechazo: [
+        "No declarar el formulario de Patente creyendo que la exoneración del Art. 550 COOTAD te exime del trámite genera multas por declaración tardía.",
+        "Tener la calificación JNDA caducada anula automáticamente el beneficio de exoneración municipal y en ARCSA."
+      ],
+      recomendacionesEspecificas: [
+        "Verifica que en tu RUC aparezca el texto de Artesano Calificado antes de acercarte a Rentas Municipales.",
+        "Conserva una copia de tu carné o resolución JNDA vigente en el Folio 06 de tu carpeta física."
       ],
       advertenciaSector: "El Art. 550 del COOTAD te exonera de pagar el IMPUESTO de Patente Municipal, pero estás obligado a declarar el formulario en Rentas cada año para obtener tu Patente Exonerada y la LUF."
     },
@@ -202,15 +256,24 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Riesgo Medio (cocina con GLP: extintores PQS y CO2, revisión de cilindros/tubería de gas, campana y detector de humo)",
       regimenRecomendado: "RIMPE Negocio Popular (<= $20,000), RIMPE Emprendedor ($20,001 a $300,000) o Régimen General",
       requiereArcsa: "SÍ requiere Permiso de Funcionamiento ARCSA para Restaurantes/Cafeterías (vigencia de 1 año desde su emisión). Requisito especial: categorización del Ministerio de Turismo (tenedores). La tasa depende de la categoría; las microempresas que cumplen los criterios pagan $0 (Resolución ARCSA-ARCSA-2026-0007-R).",
+      entidadesInvolucradas: ["SRI", "GAD Municipal de Riobamba", "Ministerio de Turismo", "Cuerpo de Bomberos de Riobamba", "ARCSA Zonal 3"],
       documentacionRequerida: [
-        "Certificado de RUC ACTIVO con actividad CIIU I5610 y dirección exacta del local en Riobamba.",
-        "Informe Favorable de Compatibilidad de Uso de Suelo (PUGS - GAD Riobamba).",
-        "Registro de Turismo / categorización como establecimiento de alimentos y bebidas (requisito especial que pide ARCSA para restaurantes).",
-        "Permiso Anual del Cuerpo de Bomberos de Riobamba (inspección de cocina, GLP, extintores y salidas).",
-        "Permiso de Funcionamiento ARCSA - Restaurantes/Cafeterías (en permisosfuncionamiento.controlsanitario.gob.ec).",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba.",
-        "Formulario Oficial de Declaración de Patente Municipal y LUF.",
-        "Contrato de arrendamiento o pago del Impuesto Predial del local; cédula y certificado de votación."
+        "Certificado de RUC ACTIVO con actividad CIIU I5610 y dirección exacta del restaurante o comedor en Riobamba.",
+        "Informe Favorable de Compatibilidad de Uso de Suelo (PUGS - GAD Riobamba) apto para gastronomía.",
+        "Registro de Turismo / categorización como establecimiento de alimentos y bebidas (requisito previo exigido por ARCSA).",
+        "Permiso Anual del Cuerpo de Bomberos de Riobamba (inspección de cocina industrial, campana, GLP y salidas de emergencia).",
+        "Permiso de Funcionamiento ARCSA - Restaurantes/Cafeterías emitido en permisosfuncionamiento.controlsanitario.gob.ec.",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba del titular del restaurante.",
+        "Formulario Oficial de Declaración de Patente Municipal y LUF gastronómica.",
+        "Contrato de arrendamiento del local o pago del Impuesto Predial; cédula y certificado de votación del representante."
+      ],
+      alertasAntiRechazo: [
+        "Intentar sacar el permiso ARCSA de restaurante sin haber completado primero el Registro de Turismo en Mintur bloquea el sistema.",
+        "Las cocinas sin campana extractora o sin trampa de grasas reciben observación directa en la inspección municipal y sanitaria."
+      ],
+      recomendacionesEspecificas: [
+        "Tramita la categorización de Mintur en línea inmediatamente después de tener el RUC y Uso de Suelo para no frenar el permiso ARCSA.",
+        "Si planeas vender cerveza o licores acompañando comidas, verifica las ordenanzas de horarios y permisos complementarios en el GAD."
       ],
       advertenciaSector: "Instala trampa de grasas en el área de lavado y separa los residuos de cocina. Si vas a vender bebidas alcohólicas, consulta en el GAD los permisos y horarios adicionales antes de abrir."
     },
@@ -226,14 +289,23 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Riesgo Bajo (extintor PQS 10 lbs, instalaciones eléctricas seguras para secadoras/planchas y señalética)",
       regimenRecomendado: "RIMPE Negocio Popular (<= $20,000) o RIMPE Emprendedor ($20,001 a $300,000)",
       requiereArcsa: "NUEVO 2026: ARCSA incorporó a peluquerías, barberías, salones de belleza y spa en la lista de establecimientos que requieren Permiso de Funcionamiento (clasificación difundida en agosto de 2026). Las microempresas están exentas de pago. Ojo: procedimientos médico-estéticos invasivos NO se permiten en una peluquería; esos requieren permiso de ACESS como servicio de salud.",
+      entidadesInvolucradas: ["SRI", "GAD Municipal de Riobamba", "Cuerpo de Bomberos de Riobamba", "ARCSA Zonal 3 (Estética y Belleza)"],
       documentacionRequerida: [
-        "Certificado de RUC ACTIVO con actividad CIIU S9602 y dirección exacta del local.",
-        "Informe Favorable de Compatibilidad de Uso de Suelo (PUGS - GAD Riobamba).",
-        "Permiso Anual del Cuerpo de Bomberos de Riobamba.",
-        "Permiso de Funcionamiento ARCSA (categoría Estética y Belleza: peluquería y/o barbería / salón de belleza).",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba.",
-        "Formulario Oficial de Declaración de Patente Municipal y LUF.",
-        "Contrato de arrendamiento o pago del Impuesto Predial; cédula y certificado de votación."
+        "Certificado de RUC ACTIVO con actividad CIIU S9602 (servicios de peluquería, barbería o tratamientos de belleza).",
+        "Informe Favorable de Compatibilidad de Uso de Suelo (PUGS - GAD Riobamba) para servicios personales.",
+        "Permiso Anual del Cuerpo de Bomberos de Riobamba (extintor PQS 10 lbs y tomas eléctricas protegidas para secadoras/planchas).",
+        "Permiso de Funcionamiento ARCSA (categoría Estética y Belleza; tasa $0.00 si aplica exoneración de microempresa).",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba del dueño del salón o barbería.",
+        "Formulario Oficial de Declaración de Patente Municipal y LUF para estética y belleza.",
+        "Contrato de arrendamiento vigente o comprobante de Impuesto Predial; cédula y certificado de votación."
+      ],
+      alertasAntiRechazo: [
+        "Ofrecer procedimientos invasivos (bótox, rellenos o mesoterapia) en una peluquería con permiso ARCSA genera sanción y derivación a ACESS.",
+        "Tener tintes, queratinas o esmaltes sin Notificación Sanitaria en los estantes motiva observaciones inmediatas en inspección."
+      ],
+      recomendacionesEspecificas: [
+        "Implementa un esterilizador UV o autoclave de mesa para tijeras, peines y navajas, y usa cuchillas desechables por cada cliente.",
+        "Coloca regletas con supresor de picos para secadoras y planchas de cabello para aprobar sin observaciones la inspección de Bomberos."
       ],
       advertenciaSector: "Usa solo cosméticos y tintes con Notificación Sanitaria vigente (revisa la etiqueta) y esteriliza tijeras, navajas y peines: es lo primero que revisa un control sanitario."
     },
@@ -249,15 +321,24 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Riesgo Bajo (extintor PQS, señalética, almacenamiento ordenado de alcohol y productos inflamables)",
       regimenRecomendado: "RIMPE Emprendedor o Régimen General según ventas (la mayoría de farmacias supera $20,000 anuales)",
       requiereArcsa: "SÍ, OBLIGATORIO antes de abrir: Permiso de Funcionamiento ARCSA para Farmacias (vigencia de 1 año calendario desde su emisión). Requisito clave: contrato con un Químico Farmacéutico o Bioquímico Farmacéutico como responsable técnico (40 horas semanales si es tiempo completo), registrado ante la autoridad competente.",
+      entidadesInvolucradas: ["SRI", "ARCSA Zonal 3 (Farmacias)", "GAD Municipal de Riobamba", "Cuerpo de Bomberos de Riobamba", "IESS (contrato responsable técnico)"],
       documentacionRequerida: [
-        "Certificado de RUC ACTIVO con actividad CIIU G4772.",
-        "Contrato de trabajo (o de servicios profesionales, si labora menos de 40 h/semana) con el Químico o Bioquímico Farmacéutico responsable técnico.",
-        "Solicitud en el sistema de permisos ARCSA (permisosfuncionamiento.controlsanitario.gob.ec) seleccionando la actividad Farmacia.",
-        "Informe Favorable de Compatibilidad de Uso de Suelo (PUGS - GAD Riobamba).",
-        "Permiso Anual del Cuerpo de Bomberos de Riobamba.",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba.",
-        "Formulario Oficial de Declaración de Patente Municipal y LUF.",
-        "Contrato de arrendamiento o pago del Impuesto Predial; cédula y certificado de votación."
+        "Certificado de RUC ACTIVO con actividad CIIU G4772 (comercio al por menor de productos farmacéuticos).",
+        "Contrato registrado (IESS/MDT) con Químico o Bioquímico Farmacéutico responsable técnico con título en SENESCYT y MSP.",
+        "Solicitud y Permiso de Funcionamiento ARCSA para Farmacia en permisosfuncionamiento.controlsanitario.gob.ec.",
+        "Informe Favorable de Compatibilidad de Uso de Suelo (PUGS - GAD Riobamba) verificando distancia entre farmacias si aplica.",
+        "Permiso Anual del Cuerpo de Bomberos de Riobamba (almacenamiento seguro de alcohol e insumos).",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba del representante de la farmacia.",
+        "Formulario Oficial de Declaración de Patente Municipal y LUF farmacéutica.",
+        "Contrato de arrendamiento o pago predial del local; cédula y papeleta de votación vigentes."
+      ],
+      alertasAntiRechazo: [
+        "ARCSA rechaza automáticamente la solicitud si el Químico Farmacéutico no tiene su título registrado en SENESCYT y MSP o figura en más establecimientos de los permitidos.",
+        "Dispensar medicamentos sujetos a control o antibióticos sin archivo físico de recetas médicas conlleva sanciones sanitarias."
+      ],
+      recomendacionesEspecificas: [
+        "Instala termohigrómetro calibrado para controlar temperatura y humedad del área de medicamentos y cadena de frío si manejas biológicos.",
+        "Mantén en carpeta visible el contrato vigente del responsable técnico y notifica a ARCSA de inmediato si hay cambio de profesional."
       ],
       advertenciaSector: "Sin el químico farmacéutico responsable registrado, ARCSA no emite el permiso. Si el profesional renuncia, debes notificar a ARCSA. Los medicamentos de venta bajo receta exigen archivo de recetas."
     },
@@ -273,13 +354,22 @@ const CIVIKA_KNOWLEDGE_BASE = {
       riesgoBomberos: "Normalmente no aplica si no tienes local abierto al público (confírmalo en el GAD si guardas mercadería en bodega)",
       regimenRecomendado: "RIMPE Negocio Popular (<= $20,000) o RIMPE Emprendedor ($20,001 a $300,000)",
       requiereArcsa: "Tu actividad de venta no requiere permiso ARCSA, pero si vendes alimentos procesados, cosméticos o suplementos, cada producto debe tener Notificación Sanitaria vigente. Si los elaboras tú, la producción sí puede requerir permiso.",
+      entidadesInvolucradas: ["SRI (RUC digital)", "GAD Municipal de Riobamba (solo Patente / Solvencia)", "ARCSA (solo si elaboras alimentos/cosméticos)"],
       pasosNoAplicanSinLocal: ["req_bomberos", "req_uso_suelo"],
       documentacionRequerida: [
-        "RUC ACTIVO: vender por Facebook, Instagram, TikTok o WhatsApp de forma habitual es una actividad económica. El SRI identifica a vendedores en redes y sanciona la actividad sin RUC.",
-        "Emitir comprobantes de venta (nota de venta RIMPE o factura electrónica según tu régimen) también en ventas por redes.",
-        "Declaración de Patente Municipal en Rentas del GAD Riobamba (la patente grava la actividad económica permanente en el cantón, aunque vendas desde casa — Art. 547 COOTAD).",
-        "Certificado de No Adeudar al GAD Municipal de Riobamba.",
-        "Cédula de identidad y certificado de votación."
+        "RUC ACTIVO bajo CIIU G4791 (comercio electrónico / ventas por redes sociales y catálogos digitales desde Riobamba).",
+        "Comprobantes de venta autorizados (notas de venta RIMPE Negocio Popular o facturación electrónica RIMPE Emprendedor).",
+        "Declaración de Patente Municipal en Rentas del GAD Riobamba (grava la actividad económica habitual en el cantón, sin requerir local comercial abierto — Art. 547 COOTAD).",
+        "Certificado de No Adeudar al GAD Municipal de Riobamba vinculado a tu número de cédula o RUC.",
+        "Cédula y certificado de votación del emprendedor digital (y comprobante de domicilio si declaras dirección de vivienda en el RUC)."
+      ],
+      alertasAntiRechazo: [
+        "Dejar sin dirección exacta o inconsistente la ficha del RUC con la declaración de Patente Municipal frena la emisión de la solvencia en Rentas.",
+        "Publicar y vender alimentos o cosméticos caseros sin Notificación Sanitaria expone a retención de envíos y sanciones de ARCSA."
+      ],
+      recomendacionesEspecificas: [
+        "No pagues permiso de Bomberos ni Uso de Suelo mientras operes 100% desde casa sin atención presencial ni bodega abierta al público.",
+        "Publica precios finales, políticas de cambio/devolución y canal de reclamos para cumplir con la Ley Orgánica de Defensa del Consumidor."
       ],
       advertenciaSector: "Publica precios claros, condiciones de cambio/devolución y tus datos de contacto: la Ley Orgánica de Defensa del Consumidor también protege a quien compra por redes. Si luego abres un local físico, debes agregar Uso de Suelo y Bomberos."
     }
