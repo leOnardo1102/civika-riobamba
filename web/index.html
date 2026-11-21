@@ -393,13 +393,13 @@
                           onclick="window.civikaApp && civikaApp.speakBusinessGuide(civikaApp.selectedBusinessId, this)">
                     <i data-lucide="play" class="w-3.5 h-3.5"></i> Reproducir
                   </button>
-                  <button type="button" class="btn-ghost btn-sm" onclick="window.civikaAudio && civikaAudio.pause()">
+                  <button type="button" id="audioGlobalPause" class="btn-ghost btn-sm" disabled onclick="window.civikaAudio && civikaAudio.pause()">
                     <i data-lucide="pause" class="w-3.5 h-3.5"></i> Pausar
                   </button>
-                  <button type="button" class="btn-ghost btn-sm" onclick="window.civikaAudio && civikaAudio.resume()">
+                  <button type="button" id="audioGlobalResume" class="btn-ghost btn-sm" disabled onclick="window.civikaAudio && civikaAudio.resume()">
                     <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Reanudar
                   </button>
-                  <button type="button" class="btn-ghost btn-sm" onclick="window.civikaAudio && civikaAudio.stop()">
+                  <button type="button" id="audioGlobalStop" class="btn-ghost btn-sm" disabled onclick="window.civikaAudio && civikaAudio.stop()">
                     <i data-lucide="square" class="w-3.5 h-3.5"></i> Detener
                   </button>
                 </div>
@@ -411,7 +411,7 @@
               <div id="prevalidationCitizenBox" class="mt-4">
                 <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
                   <p class="eyebrow">Convenio de Pre-Validación Remota · GAD Riobamba</p>
-                  <p class="text-xs text-slate-600">Completa tu checklist para habilitar el envío de resumen no sensible (Pendiente / Visto Bueno / Observado).</p>
+                  <p class="text-xs text-slate-600">Completa tu checklist para habilitar el envío de resumen no sensible (Pendiente / Pre-Aprobado / Observado).</p>
                   <button type="button" class="btn-primary btn-sm" disabled>
                     <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar resumen a Pre-Validación Remota (Convenio GAD)
                   </button>
@@ -704,7 +704,7 @@
       <a id="docViewerPortalLink" href="https://www.gadmriobamba.gob.ec" target="_blank" rel="noopener noreferrer" class="link-btn break-all">https://www.gadmriobamba.gob.ec</a>
 
       <div class="modal-foot">
-        <button id="docViewerDownloadBtn" type="button" class="btn-primary w-full justify-center" onclick="civikaApp.downloadOrPrintDocument(civikaApp.activeViewerStep.id)">
+        <button id="docViewerDownloadBtn" type="button" class="btn-primary w-full justify-center" onclick="civikaApp.downloadOrPrintDocument(civikaApp.activeViewerStep.id, true)">
           <i data-lucide="download" class="w-4 h-4"></i>
           <span>Descargar ficha en PDF</span>
         </button>

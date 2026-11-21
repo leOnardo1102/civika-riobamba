@@ -47,6 +47,7 @@ class CivikaApp {
     this.activePillarTab = {};
     this.stageProgress = {};
     this.officerUnlocked = false;
+    this.officerReturnOpenId = null;
     try { this.officerUnlocked = sessionStorage.getItem("civika_officer_pin_ok") === "1"; } catch (e) { /* nada */ }
 
     // Estado del Auditor Pre-Ventanilla (Client-Side)
@@ -436,7 +437,7 @@ class CivikaApp {
             </div>
           </div>
           <button type="button"
-                  onclick="civikaApp.speakBusinessGuide('${biz.id}', this)"
+                  onclick="civikaApp.speakBusinessGuide('${biz.id}', this)" data-audio-title="${biz.nombre}"
                   class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1.5 transition shrink-0 cursor-pointer"
                   title="Escuchar guía completa de este giro">
             <i data-lucide="volume-2" class="w-4 h-4"></i>
@@ -554,6 +555,24 @@ class CivikaApp {
       this.activePillarTab[stepId] = nextPillarTab;
     }
     this.renderUnifiedFormsAndProcedures();
+
+    if (nextPillarTab) {
+      const names = { pilar2: "Checklist", pilar3: "Anti-Rechazo", pilar4: "Plan B" };
+      const step = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales.find(s => s.id === stepId);
+      let extra = "";
+      if (nextPillarTab === "pilar2" && step) {
+        const list = step.pilares?.checklistPersonalizado || [];
+        const done = list.filter(c => this.checklistChecks[c.id]).length;
+        extra = ` · ${done}/${list.length} requisitos completados`;
+      }
+      if (typeof window.civikaToast === "function") {
+        window.civikaToast(`Etapa completada. Ahora: ${names[nextPillarTab] || "siguiente etapa"}${extra}`);
+      }
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`pillars-${stepId}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   }
 
   selectDiagnosticOption(stepId, questionId, optionValue) {
@@ -566,10 +585,14 @@ class CivikaApp {
       planB: false,
       ...(this.stageProgress[stepId] || {})
     };
-    stageState.diagnostico = true;
+    const stepDef = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales.find(s => s.id === stepId);
+    const bizDef = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId)
+      || CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes[0];
+    const ev = stepDef ? this.evaluateStepDiagnostic(stepDef, bizDef) : null;
+    stageState.diagnostico = !!(ev && ev.isComplete && !ev.hasInconsistency);
     this.stageProgress[stepId] = stageState;
     if (window.civikaDB && typeof window.civikaDB.setStepStageState === "function") {
-      window.civikaDB.setStepStageState(stepId, "diagnostico", true);
+      window.civikaDB.setStepStageState(stepId, "diagnostico", stageState.diagnostico);
     }
     this.saveStateToStorage();
     this.renderUnifiedFormsAndProcedures();
@@ -599,94 +622,152 @@ class CivikaApp {
   }
 
   /**
-   * Evalúa respuestas del diagnóstico + giro de negocio + tenencia para detectar inconsistencias reales
+   * Evalúa respuestas del diagnóstico + giro de negocio (y respuestas de otros pasos)
+   * para detectar inconsistencias reales. Nunca asume respuestas no contestadas.
+   * Devuelve: { hasInconsistency, isComplete, answered, total, badge, title, lines[], warnings[], correction }
    */
   evaluateStepDiagnostic(step, biz) {
     const p = step.pilares || {};
     const questions = p.diagnosticoRapido || [];
+    const ans = (sid, qid) => this.diagnosticAnswers[`${sid}__${qid}`] || "";
     const answers = {};
-    let hasAnsweredAny = false;
-
-    questions.forEach(q => {
-      const key = `${step.id}__${q.id}`;
-      if (this.diagnosticAnswers[key]) hasAnsweredAny = true;
-      answers[q.id] = this.diagnosticAnswers[key] || q.opciones[0]?.valor || "";
-    });
-
-    const allAnswerValues = Object.values(answers).join(" ").toLowerCase();
+    questions.forEach(q => { answers[q.id] = ans(step.id, q.id); });
+    const answered = questions.filter(q => answers[q.id]).length;
+    const total = questions.length;
+    const isComplete = answered >= total;
+    const bizId = biz.id;
     const isNoLocalBiz = Array.isArray(biz.pasosNoAplicanSinLocal) && biz.pasosNoAplicanSinLocal.includes(step.id);
-    const requiresPhysicalLocal = ["cafeteria", "restaurante", "micromercado", "tienda_ropa", "taller", "peluqueria", "farmacia"].includes(biz.id);
-    const tenencia = String(this.draftForm?.tenenciaLocal || "").toLowerCase();
 
-    // 1. Inconsistencia: giro que requiere local físico pero marcado como sin local / domicilio sin atención
-    if (requiresPhysicalLocal && (allAnswerValues.includes("sin_local") || allAnswerValues.includes("domicilio_sin_atencion") || tenencia === "sin_local")) {
-      return {
-        hasInconsistency: true,
-        isReady: hasAnsweredAny,
-        badge: "Inconsistencia detectada",
-        title: `${biz.nombre} requiere local físico habilitado`,
-        detail: `Seleccionaste "${biz.nombre}", pero la condición indica operación sin local. Para atender al público necesitas contrato o predio, Uso de Suelo (ICUS) y permiso de Bomberos${biz.id === "cafeteria" || biz.id === "restaurante" || biz.id === "farmacia" ? " además de control ARCSA" : ""}.`,
-        correction: "Corrige eligiendo si tendrás local propio/arrendado o cambia tu giro a 'Venta por Redes Sociales (sin local)'."
-      };
-    }
-
-    // 2. Inconsistencia: Profesional con título eligiendo RIMPE Popular
-    if (biz.id === "profesional" && step.id === "req_ruc" && (allAnswerValues.includes("popular") || allAnswerValues.includes("rimpe"))) {
-      return {
-        hasInconsistency: true,
-        isReady: hasAnsweredAny,
-        badge: "Alerta tributaria SRI",
-        title: "Servicios profesionales no ingresan a RIMPE",
-        detail: "Por normativa tributaria del SRI, las actividades profesionales con título están excluidas del régimen RIMPE, incluso con ventas menores a $20,000 anuales.",
-        correction: "Inscribe o actualiza tu RUC en Régimen General con facturación electrónica."
-      };
-    }
-
-    // 3. Caso Venta por Redes Sociales sin local en Bomberos o Uso de Suelo
+    // Paso que no aplica para negocios 100% sin local
     if (isNoLocalBiz) {
       return {
-        hasInconsistency: false,
-        isReady: true,
+        hasInconsistency: false, isComplete: true, answered, total,
         badge: "Paso condicional (sin local)",
         title: "No aplica mientras operes 100% sin local",
-        detail: `Para "${biz.nombre}", ${step.nombre} normalmente no es exigible si no tienes atención presencial ni bodega abierta al público.`,
-        correction: "Confirma en el GAD Municipal solo si almacenas inventario en bodega física; de lo contrario avanza al siguiente paso."
+        lines: [`Para "${biz.nombre}", ${step.nombre} normalmente no es exigible si no tienes atención presencial ni bodega abierta al público.`],
+        warnings: [],
+        correction: "Si almacenas inventario en una bodega física o atiendes clientes en un local, confirma este requisito en el canal oficial del GAD."
       };
     }
 
-    // 4. Caso específico de Cafetería / Restaurante / Farmacia / Taller
-    if (biz.id === "taller" && step.id === "req_uso_suelo") {
+    const errors = [];   // bloquean el avance: contradicción entre respuesta y giro
+    const warnings = []; // no bloquean: revisar antes de ir a la institución
+    const FOOD = ["cafeteria", "restaurante", "micromercado"];
+    const NON_FOOD = ["tienda_ropa", "profesional", "taller", "peluqueria"];
+    const GLP = ["cafeteria", "restaurante"];
+    const LOW_FIRE = ["tienda_ropa", "profesional", "peluqueria", "venta_redes", "farmacia"];
+    const LOW_IMPACT = ["tienda_ropa", "cafeteria", "profesional", "micromercado", "peluqueria", "farmacia"];
+
+    if (step.id === "req_ruc") {
+      const act = answers.ruc_q1;
+      if (act && bizId === "profesional" && act !== "profesional") {
+        errors.push("Elegiste un consultorio u oficina profesional, pero respondiste que tu actividad es comercio o taller artesanal. Los servicios profesionales con título no ingresan a RIMPE.");
+      }
+      if (act === "profesional" && bizId !== "profesional") {
+        errors.push(`Respondiste "servicios profesionales con título", pero tu giro seleccionado es "${biz.nombre}". El régimen tributario depende de la actividad real que registres en el RUC.`);
+      }
+      if (act === "profesional" && answers.ruc_q2 === "hasta_20k") {
+        warnings.push("Aunque factures menos de $20,000 al año, la actividad profesional se registra en Régimen General (no RIMPE Negocio Popular).");
+      }
+      if (act === "artesano" && bizId !== "artesanal") {
+        warnings.push("La ruta de artesano solo aplica si ya tienes calificación artesanal vigente (JNDA o MIPRO). Si aún no la tienes, elige la opción de comercio/servicios.");
+      }
+    }
+
+    if (step.id === "req_bomberos") {
+      const fuego = answers.cbr_q1;
+      if (fuego === "no_fuego" && GLP.includes(bizId)) {
+        warnings.push(`Un/a ${biz.nombre.toLowerCase()} suele usar cocina, cafetera industrial o gas. Si de verdad todo es eléctrico, prepara una declaración de equipos; si usas GLP, cambia tu respuesta: el inspector lo verificará.`);
+      }
+      if (fuego === "no_fuego" && bizId === "taller") {
+        warnings.push("Los talleres y lubricadoras suelen manejar aceites o solventes. Si almacenas inflamables, cambia tu respuesta para conocer el equipamiento exigido.");
+      }
+      if ((fuego === "si_glp" || fuego === "si_inflamables") && LOW_FIRE.includes(bizId)) {
+        warnings.push(`Tu giro "${biz.nombre}" normalmente es de riesgo bajo. Si realmente usas gas o inflamables, confírmalo en la inspección; si no, revisa tu respuesta.`);
+      }
+    }
+
+    if (step.id === "req_uso_suelo") {
+      const imp = answers.suelo_q1;
+      if (imp === "bajo_impacto" && bizId === "taller") {
+        errors.push("Un taller mecánico, lubricadora o eléctrico es actividad de impacto medio-alto, no de comercio barrial. Declararlo como bajo impacto puede provocar la negativa del ICUS.");
+      }
+      if (imp === "medio_alto_impacto" && LOW_IMPACT.includes(bizId)) {
+        warnings.push(`Marcaste impacto medio-alto para "${biz.nombre}". Si tu local no es taller, carpintería industrial ni centro nocturno, la opción correcta es bajo impacto.`);
+      }
+    }
+
+    if (step.id === "req_solvencia") {
+      if (answers.solv_q2 === "mas_de_un_mes") {
+        warnings.push("El certificado tiene vigencia limitada: no lo compres todavía si entregarás la carpeta dentro de más de un mes.");
+      }
+    }
+
+    if (step.id === "req_formulario_patente") {
+      const pat = answers.pat_q1;
+      const rucAct = ans("req_ruc", "ruc_q1");
+      if (pat === "artesano_jnda" && bizId !== "artesanal" && rucAct && rucAct !== "artesano") {
+        errors.push("En el Paso 1 (RUC) no te registraste como artesano calificado, pero aquí indicas calificación artesanal. La exoneración de patente exige que la calificación esté vigente y registrada en el SRI.");
+      }
+      if (pat === "artesano_jnda" && bizId === "profesional") {
+        errors.push("Un consultorio profesional no puede acogerse a la exoneración artesanal de patente.");
+      }
+    }
+
+    if (step.id === "req_luf_final") {
+      const ali = answers.luf_arcsa_q1;
+      if (ali === "no_alimentos" && FOOD.includes(bizId)) {
+        errors.push(`"${biz.nombre}" prepara o vende alimentos: responder "No" omitiría el control sanitario de la ARCSA.`);
+      }
+      if (bizId === "farmacia" && ali && ali !== "restaurante_procesador") {
+        errors.push("Las farmacias y botiquines siempre requieren permiso de funcionamiento de la ARCSA. Elige la tercera opción.");
+      }
+      if (ali && ali !== "no_alimentos" && NON_FOOD.includes(bizId)) {
+        errors.push(`Tu giro "${biz.nombre}" no es alimentario. Si además venderás alimentos, cambia tu giro o consulta la combinación de actividades en el canal oficial.`);
+      }
+    }
+
+    const selectedOptions = questions
+      .map(q => q.opciones.find(o => o.valor === answers[q.id]))
+      .filter(Boolean);
+    const lines = selectedOptions.map(o => o.resultadoRuta).filter(Boolean);
+
+    if (!isComplete && !errors.length) {
       return {
-        hasInconsistency: false,
-        isReady: hasAnsweredAny,
-        badge: "Validación previa obligatoria",
-        title: "Verifica clave catastral antes de arrendar",
-        detail: "Los talleres mecánicos o lubricadoras tienen restricción de suelo en zonas residenciales de Riobamba.",
-        correction: "Obtén el ICUS favorable antes de firmar contrato de arrendamiento."
+        hasInconsistency: false, isComplete: false, answered, total,
+        badge: `Diagnóstico ${answered}/${total}`,
+        title: answered ? "Responde las preguntas restantes" : `Responde ${total} pregunta${total === 1 ? "" : "s"} sobre tu ${biz.nombre.toLowerCase()}`,
+        lines: lines.length ? lines : ["Tu ruta se calcula con tus respuestas y con el giro que elegiste; no se asume ninguna opción por defecto."],
+        warnings,
+        correction: ""
       };
     }
 
-    if ((biz.id === "cafeteria" || biz.id === "restaurante") && step.id === "req_luf_final") {
+    if (errors.length) {
       return {
-        hasInconsistency: false,
-        isReady: hasAnsweredAny,
-        badge: "Control sanitario y LUF",
-        title: `Ruta alimentaria para ${biz.nombre}`,
-        detail: biz.requiereArcsa,
-        correction: "Verifica si tu tipología requiere permiso completo o exoneración de microempresa en ARCSA antes de ingresar carpeta."
+        hasInconsistency: true, isComplete, answered, total,
+        badge: "Inconsistencia detectada",
+        title: "Tus respuestas no coinciden con tu giro",
+        lines: errors,
+        warnings,
+        correction: "Corrige la respuesta marcada o cambia el tipo de negocio en el inicio. No podrás avanzar al checklist hasta resolverlo."
       };
     }
 
-    const firstSelected = questions[0]
-      ? (questions[0].opciones.find(o => o.valor === answers[questions[0].id]) || questions[0].opciones[0])
-      : null;
+    const extra = [];
+    if (bizId === "taller" && step.id === "req_uso_suelo") {
+      extra.push("Obtén el ICUS favorable antes de firmar el contrato de arrendamiento: los talleres tienen restricciones en zonas residenciales.");
+    }
+    if (FOOD.includes(bizId) && step.id === "req_luf_final" && biz.requiereArcsa) {
+      extra.push(biz.requiereArcsa);
+    }
 
     return {
-      hasInconsistency: false,
-      isReady: hasAnsweredAny || questions.length > 0,
-      badge: `Diagnóstico · ${biz.nombre}`,
-      title: firstSelected ? "Ruta confirmada para tu giro" : "Diagnóstico listo",
-      detail: firstSelected ? firstSelected.resultadoRuta : step.queHacer,
+      hasInconsistency: false, isComplete: true, answered, total,
+      badge: warnings.length ? "Ruta con observaciones" : "Ruta confirmada",
+      title: `Tu ruta para ${biz.nombre}`,
+      lines: [...lines, ...extra],
+      warnings,
       correction: ""
     };
   }
@@ -723,7 +804,7 @@ class CivikaApp {
 
           ${(p.diagnosticoRapido || []).map(q => {
             const answerKey = `${step.id}__${q.id}`;
-            const selectedVal = this.diagnosticAnswers[answerKey] || q.opciones[0]?.valor;
+            const selectedVal = this.diagnosticAnswers[answerKey] || "";
 
             return `
               <div class="bg-white rounded-xl p-2.5 border border-slate-200/90 space-y-1.5">
@@ -757,16 +838,24 @@ class CivikaApp {
               <i data-lucide="${diagEval.hasInconsistency ? 'alert-triangle' : 'check-circle-2'}" class="w-3.5 h-3.5 ${diagEval.hasInconsistency ? 'text-rose-600' : 'text-indigo-600'} shrink-0"></i>
               <span>${diagEval.title}</span>
             </p>
-            <p class="leading-relaxed">${diagEval.detail}</p>
+            <ul class="leading-relaxed space-y-1 list-disc pl-4">
+              ${diagEval.lines.map(l => `<li>${l}</li>`).join('')}
+            </ul>
+            ${diagEval.warnings.length ? `
+              <div class="mt-1.5 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 space-y-0.5">
+                <p class="font-extrabold flex items-center gap-1"><i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-600"></i><span>Revisa antes de ir a la institución</span></p>
+                ${diagEval.warnings.map(w => `<p>${w}</p>`).join('')}
+              </div>` : ''}
             ${diagEval.correction ? `<p class="font-semibold pt-0.5">Cómo corregir / proceder: ${diagEval.correction}</p>` : ''}
           </div>
 
           <div class="flex justify-end pt-1">
             <button type="button"
                     onclick="civikaApp.completeStageAndNext('${step.id}', 'diagnostico', 'pilar2')"
-                    ${diagEval.hasInconsistency ? 'disabled' : ''}
+                    ${(diagEval.hasInconsistency || !diagEval.isComplete) ? 'disabled' : ''}
+                    title="${diagEval.hasInconsistency ? 'Corrige la inconsistencia para continuar' : (!diagEval.isComplete ? 'Responde todas las preguntas del diagnóstico' : 'Ir al checklist')}"
                     class="px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition ${
-                      diagEval.hasInconsistency
+                      (diagEval.hasInconsistency || !diagEval.isComplete)
                         ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                         : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs cursor-pointer'
                     }">
@@ -903,7 +992,7 @@ class CivikaApp {
     }
 
     return `
-      <div class="mt-3 bg-slate-50/90 border border-slate-200/90 rounded-2xl p-2.5 space-y-2.5">
+      <div id="pillars-${step.id}" class="mt-3 bg-slate-50/90 border border-slate-200/90 rounded-2xl p-2.5 space-y-2.5 scroll-mt-24">
         <!-- Pestañas de las 4 Etapas -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px] font-extrabold">
           <button type="button" onclick="civikaApp.setPillarTab('${step.id}', 'pilar1')"
@@ -1001,7 +1090,7 @@ class CivikaApp {
             <div class="flex items-center gap-1.5 shrink-0">
               <!-- Botón Text-to-Speech (Escuchar Guía) -->
               <button type="button"
-                      onclick="civikaApp.speakStepGuide('${step.id}', this)"
+                      onclick="civikaApp.speakStepGuide('${step.id}', this)" data-audio-title="Paso ${step.paso}: ${step.nombre}"
                       class="px-2 py-1 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[10px] font-bold flex items-center gap-1 transition"
                       title="Escuchar guía de este trámite por voz">
                 <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
@@ -2198,7 +2287,10 @@ class CivikaApp {
     if (!modal) {
       modal = document.createElement("div");
       modal.id = "civikaPrepNoticeModal";
-      modal.className = "fixed inset-0 z-[9500] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4";
+      modal.className = "fixed inset-0 z-[9500] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto";
+      modal.setAttribute("role", "dialog");
+      modal.setAttribute("aria-modal", "true");
+      modal.setAttribute("aria-label", "Preparación antes de continuar");
       modal.addEventListener("click", (e) => {
         if (e.target === modal) this.closePrepNoticeModal();
       });
@@ -2233,6 +2325,7 @@ class CivikaApp {
           <p class="font-bold">Cívika es orientación ciudadana gratuita</p>
           <p class="leading-relaxed">Esta guía te prepara para evitar rechazos. El trámite oficial, tasas y validación legal se realizan directamente en la entidad competente:</p>
           <p class="font-semibold pt-0.5">Institución: ${step.entidad}</p>
+          <p class="leading-relaxed">Tasas y requisitos pueden variar según la ordenanza vigente o tu caso particular: tómalos como referencia y verifícalos en el canal oficial.</p>
           <a href="${step.enlaceOficial}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-700 font-bold underline break-all">
             <span>${step.enlaceOficial}</span>
             <i data-lucide="external-link" class="w-3 h-3 shrink-0"></i>
@@ -2278,6 +2371,7 @@ class CivikaApp {
         else if (actionType === "pdf") this.downloadOrPrintDocument(stepId, true);
         else if (actionType === "portal") window.open(step.enlaceOficial, "_blank", "noopener,noreferrer");
       };
+      setTimeout(() => contBtn.focus(), 30);
     }
     if (window.lucide) window.lucide.createIcons();
   }
@@ -2370,7 +2464,7 @@ class CivikaApp {
                 <i data-lucide="folder-check" class="w-3.5 h-3.5"></i>
                 <span>Entregable Oficial para la Carpeta</span>
               </span>
-              <button type="button" onclick="civikaApp.speakStepGuide('${step.id}', this)"
+              <button type="button" onclick="civikaApp.speakStepGuide('${step.id}', this)" data-audio-title="Paso ${step.paso}: ${step.nombre}"
                       class="text-[10px] font-bold bg-white/20 hover:bg-white/30 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
                 <i data-lucide="volume-2" class="w-3 h-3"></i>
                 <span>Escuchar guía</span>
@@ -2857,6 +2951,45 @@ class CivikaApp {
   // ==============================================================
   // 9. FLUJO DE CONVENIO (PRE-VALIDACIÓN REMOTA) Y ROL ADMINISTRATIVO (PIN 1110)
   // ==============================================================
+  escHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  parroquiaNombre(id) {
+    const list = CIVIKA_KNOWLEDGE_BASE.parroquiasRiobamba || [];
+    const found = list.find(p => p.id === id);
+    return found ? found.nombre.split(" (")[0] : String(id || "No indicada");
+  }
+
+  prevalidationBadge(estado) {
+    if (estado === "Pre-Aprobado" || estado === "Visto Bueno") return "bg-emerald-100 text-emerald-800 border-emerald-200";
+    if (estado === "Observado") return "bg-rose-100 text-rose-800 border-rose-200";
+    return "bg-amber-100 text-amber-800 border-amber-200";
+  }
+
+  /** Resumen no sensible del expediente actual del ciudadano */
+  buildPrevalidationSummary() {
+    const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId)
+      || CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes[0];
+    const pasos = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales;
+    const noAplica = biz.pasosNoAplicanSinLocal || [];
+    const applicableSteps = pasos.filter(p => !noAplica.includes(p.id));
+    const doneSteps = applicableSteps.filter(p => this.stepsState[p.id]).length;
+    let totalChecks = 0;
+    let doneChecks = 0;
+    applicableSteps.forEach(p => {
+      const list = p.pilares?.checklistPersonalizado || [];
+      totalChecks += list.length;
+      doneChecks += list.filter(c => this.checklistChecks[c.id]).length;
+    });
+    const alertasSuperadas = applicableSteps.filter(p => this.stageProgress[p.id]?.antiRechazo).length;
+    const ciiu = String(biz.ciiuReferencia || "").split(" - ")[0].trim();
+    return {
+      biz, applicableSteps, doneSteps, totalChecks, doneChecks, alertasSuperadas, ciiu,
+      isReadyToSend: doneSteps >= applicableSteps.length || (totalChecks > 0 && doneChecks >= Math.max(3, Math.ceil(totalChecks * 0.5)))
+    };
+  }
+
   async renderPrevalidationCitizenBox() {
     const stepsContainer = document.getElementById("unifiedStepsContainer");
     if (!stepsContainer || !stepsContainer.parentElement) return;
@@ -2869,75 +3002,82 @@ class CivikaApp {
       stepsContainer.insertAdjacentElement("afterend", box);
     }
 
-    const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId)
-      || CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes[0];
-    const pasos = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales;
-    const noAplica = biz.pasosNoAplicanSinLocal || [];
-    const applicableSteps = pasos.filter(p => !noAplica.includes(p.id));
-    const doneSteps = applicableSteps.filter(p => this.stepsState[p.id]).length;
-
-    let totalChecks = 0;
-    let doneChecks = 0;
-    applicableSteps.forEach(p => {
-      const list = p.pilares?.checklistPersonalizado || [];
-      totalChecks += list.length;
-      doneChecks += list.filter(c => this.checklistChecks[c.id]).length;
-    });
-
-    const isReadyToSend = doneSteps >= applicableSteps.length || doneChecks >= Math.max(3, Math.ceil(totalChecks * 0.5));
+    const e = (v) => this.escHtml(v);
+    const sum = this.buildPrevalidationSummary();
     const inbox = window.civikaDB && typeof window.civikaDB.getPrevalidationInbox === "function"
       ? await window.civikaDB.getPrevalidationInbox()
       : [];
+    const mine = inbox.filter(item => item.origen === "ciudadano");
 
-    const badgeColor = (est) => est === "Visto Bueno"
-      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-      : est === "Observado"
-        ? "bg-rose-100 text-rose-800 border-rose-200"
-        : "bg-amber-100 text-amber-800 border-amber-200";
+    // Notificación al ciudadano: respuestas del GAD aún no vistas
+    const unseen = mine.filter(item => item.estado !== "Pendiente" && !item.vistoPorCiudadano);
+    if (unseen.length && window.civikaDB && typeof window.civikaDB.markPrevalidationSeen === "function") {
+      unseen.forEach(item => {
+        if (typeof window.civikaToast === "function") {
+          window.civikaToast(item.estado === "Pre-Aprobado"
+            ? `Tu expediente ${item.id} fue Pre-Aprobado. Código de pase rápido: ${item.codigoPase}`
+            : `Tu expediente ${item.id} fue devuelto con observación. Revisa el motivo.`);
+        }
+      });
+      await window.civikaDB.markPrevalidationSeen(unseen.map(i => i.id));
+    }
 
     box.innerHTML = `
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
-        <div class="flex items-start justify-between gap-2 flex-wrap">
-          <div>
-            <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Convenio de Pre-Validación Remota · GAD Riobamba</p>
-            <h4 class="text-sm font-extrabold text-slate-900 mt-0.5">Enviar resumen no sensible a revisión previa</h4>
-            <p class="text-xs text-slate-600 mt-0.5">
-              Solo se envían metadatos (giro, parroquia y conteo ${doneSteps}/${applicableSteps.length} pasos · ${doneChecks}/${totalChecks} requisitos). Sin contraseñas ni cédula completa.
-            </p>
+        <div class="flex items-start justify-between gap-3 flex-wrap">
+          <div class="min-w-0 flex-1">
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Pre-Validación Remota · Propuesta de convenio con el GAD Riobamba</p>
+            <h4 class="text-sm font-extrabold text-slate-900 mt-0.5">Enviar tu resumen para una revisión previa</h4>
+            <p class="text-xs text-slate-600 mt-1">Solo se envían estos metadatos no sensibles:</p>
+            <ul class="mt-1 text-[11px] text-slate-700 grid sm:grid-cols-2 gap-x-4 gap-y-0.5">
+              <li>· Giro: <b>${e(sum.biz.nombre)}</b> (CIIU ${e(sum.ciiu)})</li>
+              <li>· Parroquia: <b>${e(this.parroquiaNombre(this.draftForm?.parroquia))}</b></li>
+              <li>· Checklist: <b>${sum.doneChecks}/${sum.totalChecks}</b> requisitos · ${sum.doneSteps}/${sum.applicableSteps.length} pasos</li>
+              <li>· Alertas anti-rechazo superadas: <b>${sum.alertasSuperadas}/${sum.applicableSteps.length}</b></li>
+            </ul>
+            <p class="text-[10px] text-slate-500 mt-1">No se envían nombres, cédula, RUC, contraseñas ni documentos PDF.</p>
           </div>
-          <button type="button"
-                  onclick="civikaApp.submitCitizenPrevalidation('${doneSteps}/${applicableSteps.length}')"
-                  ${isReadyToSend ? '' : 'disabled'}
+          <button type="button" id="btnSubmitPrevalidation"
+                  onclick="civikaApp.submitCitizenPrevalidation()"
+                  ${sum.isReadyToSend ? '' : 'disabled'}
                   class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shrink-0 ${
-                    isReadyToSend
+                    sum.isReadyToSend
                       ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer'
                       : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                   }">
             <i data-lucide="send" class="w-3.5 h-3.5"></i>
-            <span>Enviar resumen a Pre-Validación Remota (Convenio GAD)</span>
+            <span>Enviar a Pre-Validación</span>
           </button>
         </div>
 
-        ${!isReadyToSend ? `
+        ${!sum.isReadyToSend ? `
           <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-            Marca al menos la mitad de los requisitos en tus checklists (${doneChecks}/${totalChecks}) o completa los pasos aplicables para habilitar el envío.
+            Marca al menos la mitad de los requisitos de tus checklists (${sum.doneChecks}/${sum.totalChecks}) o completa los pasos aplicables para habilitar el envío.
           </p>
         ` : ''}
 
-        ${inbox.length ? `
+        ${mine.length ? `
           <div class="pt-2 border-t border-slate-100 space-y-2">
-            <p class="text-[11px] font-bold text-slate-700">Estado en bandeja de Pre-Validación (${inbox.length}):</p>
+            <p class="text-[11px] font-bold text-slate-700">Tus envíos (${mine.length}):</p>
             <div class="space-y-1.5">
-              ${inbox.slice(0, 4).map(item => `
-                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-start justify-between gap-2 flex-wrap">
-                  <div class="min-w-0">
-                    <p class="font-bold text-slate-900">${item.id} · ${item.giroNombre}</p>
-                    <p class="text-[11px] text-slate-600">Parroquia: ${item.parroquia} · Checklist: ${item.checklistConteo}</p>
-                    <p class="text-[11px] text-slate-700 mt-0.5">${item.observacion}</p>
+              ${mine.slice(0, 4).map(item => `
+                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                  <div class="flex items-start justify-between gap-2 flex-wrap">
+                    <p class="font-bold text-slate-900 min-w-0">${e(item.id)} · ${e(item.giroNombre)}</p>
+                    <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full border shrink-0 ${this.prevalidationBadge(item.estado)}">${e(item.estado)}</span>
                   </div>
-                  <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full border shrink-0 ${badgeColor(item.estado)}">
-                    ${item.estado}
-                  </span>
+                  <p class="text-[11px] text-slate-600">${e(this.parroquiaNombre(item.parroquia))} · Checklist ${e(item.checklistConteo)} · Alertas superadas ${e(item.alertasSuperadas ?? "—")} · ${e(item.fechaEnvio)}</p>
+                  ${item.estado === "Pre-Aprobado" ? `
+                    <div class="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
+                      <p class="font-extrabold">Código de pase rápido: <span class="font-mono tracking-wider">${e(item.codigoPase)}</span></p>
+                      <p class="text-[11px]">Preséntalo en Ventanilla Única junto con tus documentos originales. Es una pre-revisión: la emisión oficial la realiza el GAD.</p>
+                    </div>` : ''}
+                  ${item.estado === "Observado" ? `
+                    <div class="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-900">
+                      <p class="font-extrabold">Motivo: ${e(item.motivo || "Revisar requisitos")}</p>
+                      ${item.observacion ? `<p class="text-[11px]">${e(item.observacion)}</p>` : ''}
+                    </div>` : ''}
+                  ${item.estado === "Pendiente" ? `<p class="text-[11px] text-slate-600">En espera de revisión del funcionario.</p>` : ''}
                 </div>
               `).join('')}
             </div>
@@ -2948,21 +3088,26 @@ class CivikaApp {
     if (window.lucide) window.lucide.createIcons();
   }
 
-  async submitCitizenPrevalidation(conteoStr) {
+  async submitCitizenPrevalidation() {
     if (!window.civikaDB || typeof window.civikaDB.submitToPrevalidationInbox !== "function") return;
-    const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId)
-      || CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes[0];
+    const sum = this.buildPrevalidationSummary();
+    if (!sum.isReadyToSend) return;
     const record = await window.civikaDB.submitToPrevalidationInbox({
-      giroId: biz.id,
-      giroNombre: biz.nombre,
-      parroquia: this.draftForm?.parroquia || "Maldonado",
-      checklistConteo: conteoStr || "0/6",
+      origen: "ciudadano",
+      giroId: sum.biz.id,
+      giroNombre: sum.biz.nombre,
+      ciiu: sum.ciiu,
+      parroquia: this.draftForm?.parroquia || "",
+      checklistConteo: `${sum.doneChecks}/${sum.totalChecks}`,
+      pasosConteo: `${sum.doneSteps}/${sum.applicableSteps.length}`,
+      alertasSuperadas: `${sum.alertasSuperadas}/${sum.applicableSteps.length}`,
       estado: "Pendiente"
     });
     if (typeof window.civikaToast === "function") {
-      window.civikaToast(`Resumen ${record.id} enviado a Pre-Validación Remota (Pendiente)`);
+      window.civikaToast(`Resumen ${record.id} enviado a Pre-Validación (Pendiente)`);
     }
-    this.renderPrevalidationCitizenBox();
+    await this.renderPrevalidationCitizenBox();
+    if (this.officerUnlocked) this.renderOfficerGateAndInbox();
   }
 
   async renderOfficerGateAndInbox() {
@@ -2991,6 +3136,7 @@ class CivikaApp {
     if (!this.officerUnlocked) {
       protectedChildren.forEach(el => el.classList.add("hidden"));
       inboxBox.classList.add("hidden");
+      inboxBox.innerHTML = "";
       gate.classList.remove("hidden");
       gate.innerHTML = `
         <div class="max-w-md mx-auto bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4 my-4">
@@ -2999,30 +3145,30 @@ class CivikaApp {
               <i data-lucide="lock" class="w-5 h-5"></i>
             </span>
             <div>
-              <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Rol Administrativo · Convenio GAD</p>
-              <h3 class="text-base font-extrabold text-slate-900">Acceso para Funcionario de Ventanilla</h3>
+              <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Rol Administrativo · Revisor GAD</p>
+              <h3 class="text-base font-extrabold text-slate-900">Acceso para Funcionario / Revisor</h3>
             </div>
           </div>
-          <p class="text-xs text-slate-600 leading-relaxed">
-            Ingresa el PIN institucional para revisar expedientes en Pre-Validación Remota y escanear Pasaportes QR.
+          <p class="text-xs text-slate-700 leading-relaxed bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            Acceso exclusivo para revisores autorizados bajo convenio (Demo PIN: 1110)
           </p>
           <div class="space-y-2">
-            <label for="officerPinInput" class="text-xs font-bold text-slate-700 block">PIN de acceso</label>
-            <input type="password" id="officerPinInput" maxlength="8" inputmode="numeric"
-                   placeholder="Ingresa el PIN (ej. 1110)"
+            <label for="officerPinInput" class="text-xs font-bold text-slate-700 block">PIN de funcionario</label>
+            <input type="password" id="officerPinInput" maxlength="8" inputmode="numeric" autocomplete="off"
+                   placeholder="••••"
                    onkeydown="if(event.key==='Enter'){event.preventDefault(); civikaApp.unlockOfficerPin();}"
                    class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <p id="officerPinError" class="text-xs text-rose-600 font-semibold hidden"></p>
+            <p id="officerPinError" role="alert" class="text-xs text-rose-600 font-semibold hidden"></p>
           </div>
           <div class="flex items-center justify-between gap-2 flex-wrap">
-            <button type="button"
-                    onclick="const inp=document.getElementById('officerPinInput'); if(inp){inp.value='1110';}"
-                    class="text-[11px] font-semibold text-slate-500 hover:text-blue-700 underline cursor-pointer">
-              Autocompletar Demo (1110)
+            <button type="button" id="btnOfficerAutofill"
+                    onclick="const inp=document.getElementById('officerPinInput'); if(inp){inp.value='1110'; inp.focus();}"
+                    class="px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 cursor-pointer">
+              Autocompletar Demo
             </button>
-            <button type="button" onclick="civikaApp.unlockOfficerPin()"
+            <button type="button" id="btnOfficerUnlock" onclick="civikaApp.unlockOfficerPin()"
                     class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition cursor-pointer">
-              Ingresar a Ventanilla
+              Ingresar a la bandeja
             </button>
           </div>
         </div>
@@ -3032,63 +3178,86 @@ class CivikaApp {
     }
 
     gate.classList.add("hidden");
+    gate.innerHTML = "";
     protectedChildren.forEach(el => el.classList.remove("hidden"));
     inboxBox.classList.remove("hidden");
 
+    const e = (v) => this.escHtml(v);
     const inbox = window.civikaDB && typeof window.civikaDB.getPrevalidationInbox === "function"
       ? await window.civikaDB.getPrevalidationInbox()
       : [];
-
-    const badgeColor = (est) => est === "Visto Bueno"
-      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-      : est === "Observado"
-        ? "bg-rose-100 text-rose-800 border-rose-200"
-        : "bg-amber-100 text-amber-800 border-amber-200";
+    const motivos = CivikaApp.RETURN_REASONS;
+    const pendientes = inbox.filter(i => i.estado === "Pendiente").length;
 
     inboxBox.innerHTML = `
       <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
         <div class="flex items-center justify-between gap-2 flex-wrap">
           <div>
-            <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Bandeja Remota bajo Convenio</p>
-            <h4 class="text-sm font-extrabold text-slate-900">Expedientes para Pre-Validación (${inbox.length})</h4>
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Bandeja de Pre-Validación Remota</p>
+            <h4 class="text-sm font-extrabold text-slate-900">Expedientes recibidos (${inbox.length}) · ${pendientes} pendiente${pendientes === 1 ? "" : "s"}</h4>
           </div>
-          <button type="button"
-                  onclick="civikaApp.officerUnlocked=false; try{sessionStorage.removeItem('civika_officer_pin_ok');}catch(e){}; civikaApp.renderOfficerGateAndInbox();"
+          <button type="button" id="btnOfficerLock"
+                  onclick="civikaApp.lockOfficerView()"
                   class="text-xs font-semibold text-slate-500 hover:text-slate-800 underline cursor-pointer">
             Bloquear vista
           </button>
         </div>
 
         <div class="space-y-2.5">
-          ${inbox.map(item => `
-            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+          ${inbox.map(item => {
+            const id = e(item.id);
+            const decided = item.estado !== "Pendiente";
+            return `
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs" data-exp="${id}">
               <div class="flex items-start justify-between gap-2 flex-wrap">
-                <div>
-                  <p class="font-extrabold text-slate-900">${item.id} · ${item.giroNombre}</p>
-                  <p class="text-[11px] text-slate-600">Parroquia: ${item.parroquia} · Checklist: ${item.checklistConteo} · ${item.fechaEnvio || ""}</p>
+                <div class="min-w-0">
+                  <p class="font-extrabold text-slate-900">${id} · ${e(item.giroNombre)}${item.origen === "ciudadano" ? ' <span class="ml-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 align-middle">Enviado desde Cívika</span>' : ''}</p>
+                  <p class="text-[11px] text-slate-600">CIIU ${e(item.ciiu || "—")} · ${e(this.parroquiaNombre(item.parroquia))} · ${e(item.fechaEnvio || "")}</p>
+                  <p class="text-[11px] text-slate-600">Checklist ${e(item.checklistConteo)} · Alertas superadas ${e(item.alertasSuperadas ?? "—")}</p>
                 </div>
-                <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full border ${badgeColor(item.estado)}">
-                  ${item.estado}
-                </span>
+                <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full border shrink-0 ${this.prevalidationBadge(item.estado)}">${e(item.estado)}</span>
               </div>
-              <p class="text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-slate-200">${item.observacion}</p>
-              <div class="flex flex-wrap gap-2">
-                <button type="button"
-                        onclick="civikaApp.officerDecidePrevalidation('${item.id}', 'Visto Bueno')"
-                        class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer">
-                  <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>
-                  <span>Visto Bueno (Listo para emisión virtual)</span>
-                </button>
-                <button type="button"
-                        onclick="civikaApp.officerDecidePrevalidation('${item.id}', 'Observado')"
-                        class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer">
-                  <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
-                  <span>Devolver con Observación</span>
-                </button>
-              </div>
+              ${item.estado === "Pre-Aprobado" ? `<p class="text-[11px] text-emerald-900 bg-emerald-50 p-2 rounded-lg border border-emerald-200">Código de pase rápido: <b class="font-mono">${e(item.codigoPase)}</b> · ciudadano notificado</p>` : ''}
+              ${item.estado === "Observado" ? `<p class="text-[11px] text-rose-900 bg-rose-50 p-2 rounded-lg border border-rose-200">Motivo: <b>${e(item.motivo || "—")}</b>${item.observacion ? ` · ${e(item.observacion)}` : ''}</p>` : ''}
+              ${!decided ? `
+                <div class="flex flex-wrap gap-2">
+                  <button type="button"
+                          onclick="civikaApp.officerApprove('${id}')"
+                          class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+                    <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>
+                    <span>Otorgar Visto Bueno (Listo para emisión virtual)</span>
+                  </button>
+                  <button type="button"
+                          onclick="civikaApp.toggleReturnForm('${id}')"
+                          class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+                    <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+                    <span>Devolver con Observación</span>
+                  </button>
+                </div>
+                <div id="returnForm-${id}" class="${this.officerReturnOpenId === item.id ? '' : 'hidden'} p-2.5 rounded-lg bg-white border border-rose-200 space-y-2">
+                  <label for="returnReason-${id}" class="text-[11px] font-bold text-slate-700 block">Motivo específico</label>
+                  <select id="returnReason-${id}" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-[11px] bg-white">
+                    ${motivos.map(m => `<option value="${e(m)}">${e(m)}</option>`).join('')}
+                  </select>
+                  <label for="returnNote-${id}" class="text-[11px] font-bold text-slate-700 block">Nota para el ciudadano (opcional, sin datos personales)</label>
+                  <input id="returnNote-${id}" type="text" maxlength="160" class="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-[11px]" placeholder="Ej.: adjunta la planilla del último mes">
+                  <div class="flex gap-2 justify-end">
+                    <button type="button" onclick="civikaApp.toggleReturnForm(null)" class="px-3 py-1.5 rounded-lg border border-slate-300 text-[11px] font-semibold cursor-pointer">Cancelar</button>
+                    <button type="button" onclick="civikaApp.officerReturn('${id}')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold cursor-pointer">Confirmar devolución</button>
+                  </div>
+                </div>
+              ` : `
+                <button type="button" onclick="civikaApp.officerReopen('${id}')" class="text-[11px] font-semibold text-slate-500 hover:text-slate-800 underline cursor-pointer">Reabrir revisión</button>
+              `}
             </div>
-          `).join('')}
+          `;}).join('')}
         </div>
+
+        <p class="text-[10px] text-slate-500 leading-relaxed border-t border-slate-100 pt-2">
+          Nota institucional: esta bandeja es una demostración local. En un convenio real, Cívika podría interoperar con el sistema del GAD mediante API o Webhook,
+          enviando solo metadatos no sensibles y con consentimiento del ciudadano, conforme a la Ley Orgánica de Protección de Datos Personales.
+          El Visto Bueno es una pre-revisión y no reemplaza la emisión oficial del permiso.
+        </p>
       </div>
     `;
     if (window.lucide) window.lucide.createIcons();
@@ -3103,27 +3272,77 @@ class CivikaApp {
       try { sessionStorage.setItem("civika_officer_pin_ok", "1"); } catch (e) { /* nada */ }
       this.renderOfficerGateAndInbox();
     } else if (err) {
-      err.textContent = "PIN incorrecto. Verifica con el administrador (demo: 1110).";
+      err.textContent = val ? "PIN incorrecto. Usa el PIN de demostración 1110." : "Ingresa el PIN de funcionario.";
       err.classList.remove("hidden");
+      if (inp) { inp.value = ""; inp.focus(); }
     }
   }
 
-  async officerDecidePrevalidation(expedienteId, nuevoEstado) {
-    if (!window.civikaDB || typeof window.civikaDB.updatePrevalidationStatus !== "function") return;
-    let obs = "";
-    if (nuevoEstado === "Visto Bueno") {
-      obs = "Visto Bueno otorgado en Pre-Validación Remota. Expediente listo para emisión virtual / Ventanilla Única.";
-    } else {
-      const input = window.prompt("Indica el motivo específico de la observación para el ciudadano:", "Verificar compatibilidad de Uso de Suelo (ICUS) y vigencia del extintor PQS.");
-      if (input === null) return;
-      obs = input.trim() || "Devuelto con observación: revisar requisitos obligatorios del checklist.";
-    }
-    await window.civikaDB.updatePrevalidationStatus(expedienteId, nuevoEstado, obs);
-    if (typeof window.civikaToast === "function") {
-      window.civikaToast(`Expediente ${expedienteId} actualizado a: ${nuevoEstado}`);
+  lockOfficerView() {
+    this.officerUnlocked = false;
+    this.officerReturnOpenId = null;
+    this.officerReturnOpenId = null;
+    try { sessionStorage.removeItem("civika_officer_pin_ok"); } catch (e) { /* nada */ }
+    if (window.civikaOfficer && typeof window.civikaOfficer.stopCamera === "function") {
+      try { window.civikaOfficer.stopCamera(); } catch (e) { /* nada */ }
     }
     this.renderOfficerGateAndInbox();
-    this.renderPrevalidationCitizenBox();
+  }
+
+  toggleReturnForm(expedienteId) {
+    this.officerReturnOpenId = this.officerReturnOpenId === expedienteId ? null : expedienteId;
+    this.renderOfficerGateAndInbox();
+  }
+
+  generateFastPassCode(expedienteId) {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const bytes = new Uint8Array(6);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+    else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    const rand = Array.from(bytes, b => alphabet[b % alphabet.length]).join("");
+    const suffix = String(expedienteId).replace(/\D/g, "").slice(-3).padStart(3, "0");
+    return `PR-${suffix}-${rand.slice(0, 3)}${rand.slice(3)}`;
+  }
+
+  async officerApprove(expedienteId) {
+    if (!window.civikaDB || typeof window.civikaDB.updatePrevalidationStatus !== "function") return;
+    const codigoPase = this.generateFastPassCode(expedienteId);
+    await window.civikaDB.updatePrevalidationStatus(expedienteId, "Pre-Aprobado", {
+      codigoPase,
+      motivo: "",
+      observacion: "Pre-revisión favorable. Listo para emisión virtual / Ventanilla Única."
+    });
+    this.officerReturnOpenId = null;
+    if (typeof window.civikaToast === "function") {
+      window.civikaToast(`${expedienteId} Pre-Aprobado · Pase rápido ${codigoPase} · ciudadano notificado`);
+    }
+    await this.renderOfficerGateAndInbox();
+    await this.renderPrevalidationCitizenBox();
+  }
+
+  async officerReturn(expedienteId) {
+    if (!window.civikaDB || typeof window.civikaDB.updatePrevalidationStatus !== "function") return;
+    const sel = document.getElementById(`returnReason-${expedienteId}`);
+    const note = document.getElementById(`returnNote-${expedienteId}`);
+    const motivo = sel ? sel.value : CivikaApp.RETURN_REASONS[0];
+    await window.civikaDB.updatePrevalidationStatus(expedienteId, "Observado", {
+      motivo,
+      codigoPase: "",
+      observacion: note ? note.value.trim().slice(0, 160) : ""
+    });
+    this.officerReturnOpenId = null;
+    if (typeof window.civikaToast === "function") {
+      window.civikaToast(`${expedienteId} devuelto: ${motivo}`);
+    }
+    await this.renderOfficerGateAndInbox();
+    await this.renderPrevalidationCitizenBox();
+  }
+
+  async officerReopen(expedienteId) {
+    if (!window.civikaDB || typeof window.civikaDB.updatePrevalidationStatus !== "function") return;
+    await window.civikaDB.updatePrevalidationStatus(expedienteId, "Pendiente", { motivo: "", codigoPase: "", observacion: "" });
+    await this.renderOfficerGateAndInbox();
+    await this.renderPrevalidationCitizenBox();
   }
 
   async saveStateToStorage() {
@@ -3172,12 +3391,24 @@ class CivikaApp {
   }
 }
 
+CivikaApp.RETURN_REASONS = [
+  "Planilla de servicio básico mayor a 90 días",
+  "Verificar compatibilidad de Uso de Suelo (ICUS) para la dirección",
+  "Contrato de arrendamiento sin firmas o sin vigencia",
+  "Actividad registrada en el RUC no coincide con el giro declarado",
+  "Extintor sin recarga vigente o sin etiqueta visible",
+  "Certificado de No Adeudar vencido o no emitido",
+  "Checklist incompleto: faltan requisitos obligatorios",
+  "Otro motivo (ver nota del revisor)"
+];
+
 document.addEventListener("DOMContentLoaded", () => {
   window.civikaApp = new CivikaApp();
 
   // Accesibilidad: cerrar ventanas emergentes con la tecla Esc o tocando el fondo oscuro
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    window.civikaApp.closePrepNoticeModal();
     window.civikaApp.closeDocumentViewer();
     window.civikaApp.closeLiveMetricsModal();
   });

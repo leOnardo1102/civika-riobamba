@@ -776,3 +776,12 @@ html.easy-read-mode select:focus-visible { box-shadow: 0 0 0 4px #F59E0B !import
 }
 [data-audio-state="playing"] { box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22); }
 [data-audio-state="paused"] { opacity: 0.92; }
+
+/* Botones deshabilitados (audio global, envíos, CTA de etapas) */
+.btn-ghost:disabled,
+.btn-secondary:disabled,
+.btn-primary:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  pointer-events: none;
+}

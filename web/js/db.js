@@ -22,7 +22,7 @@ const CIVIKA_DB_CONFIG = {
     anonymousMetrics: "civika_anon_metrics_v2",
     easyReadMode: "civika_easy_read_mode",
     stageProgress: "civika_stage_progress_v1",
-    prevalidationInbox: "civika_prevalidation_inbox_v1"
+    prevalidationInbox: "civika_prevalidation_inbox_v2"
   }
 };
 
@@ -253,8 +253,9 @@ class CivikaRepository {
   }
 
   /**
-   * Bandeja simulada de expedientes enviados a Pre-Validación Remota bajo convenio
-   * Regla estricta: solo metadatos no sensibles (ID local, giro, parroquia, conteo X/Y, estado)
+   * Bandeja simulada de expedientes enviados a Pre-Validación Remota bajo convenio.
+   * Regla estricta: solo metadatos no sensibles (ID local, giro, CIIU, parroquia, conteos, estado).
+   * Los casos semilla son FICTICIOS para la demostración.
    */
   async ensureSeedPrevalidationInbox() {
     const existing = await this.getItem(this.config.storageKeys.prevalidationInbox, null);
@@ -262,23 +263,26 @@ class CivikaRepository {
 
     const seedInbox = [
       {
-        id: "EXP-RIO-2026-014",
-        giroId: "cafeteria",
-        giroNombre: "Cafetería o Pequeño Café",
-        parroquia: "Maldonado",
-        checklistConteo: "5/6",
-        estado: "Visto Bueno",
-        observacion: "Expediente pre-validado sin observaciones. Listo para Ventanilla Única con Pasaporte QR.",
+        id: "EXP-RIO-2026-031", origen: "demo",
+        giroId: "micromercado", giroNombre: "Micromercado o Tienda de Barrio", ciiu: "G4711",
+        parroquia: "Velasco", checklistConteo: "9/14", alertasSuperadas: "3/6",
+        estado: "Pendiente", motivo: "", codigoPase: "", observacion: "",
+        fechaEnvio: "20/11/2026, 12:05"
+      },
+      {
+        id: "EXP-RIO-2026-014", origen: "demo",
+        giroId: "cafeteria", giroNombre: "Cafetería o Pequeño Café", ciiu: "I5610",
+        parroquia: "Maldonado", checklistConteo: "13/14", alertasSuperadas: "6/6",
+        estado: "Pre-Aprobado", motivo: "", codigoPase: "PR-014-K7M2QD",
+        observacion: "Pre-revisión favorable. Listo para emisión virtual / Ventanilla Única.",
         fechaEnvio: "20/11/2026, 09:15"
       },
       {
-        id: "EXP-RIO-2026-021",
-        giroId: "tienda_ropa",
-        giroNombre: "Tienda de Ropa y Calzado",
-        parroquia: "Lizarzaburu",
-        checklistConteo: "4/6",
-        estado: "Observado",
-        observacion: "Falta adjuntar Informe de Compatibilidad de Uso de Suelo (ICUS) y confirmar recarga vigente del extintor PQS.",
+        id: "EXP-RIO-2026-021", origen: "demo",
+        giroId: "tienda_ropa", giroNombre: "Tienda de Ropa y Calzado", ciiu: "G4771",
+        parroquia: "Lizarzaburu", checklistConteo: "8/14", alertasSuperadas: "2/6",
+        estado: "Observado", motivo: "Planilla de servicio básico mayor a 90 días", codigoPase: "",
+        observacion: "Adjunta una planilla reciente de la dirección del local.",
         fechaEnvio: "20/11/2026, 11:40"
       }
     ];
@@ -293,25 +297,32 @@ class CivikaRepository {
 
   async submitToPrevalidationInbox(metadata) {
     const inbox = await this.ensureSeedPrevalidationInbox();
-    const allowedStates = ["Pendiente", "Visto Bueno", "Observado"];
-    const estado = allowedStates.includes(metadata?.estado) ? metadata.estado : "Pendiente";
-    const id = metadata?.id || `EXP-RIO-2026-${Date.now().toString().slice(-3)}`;
+    const seq = inbox.reduce((max, item) => {
+      const n = parseInt(String(item.id).split("-").pop(), 10);
+      return Number.isFinite(n) && n > max ? n : max;
+    }, 40) + 1;
+    const id = `EXP-RIO-${new Date().getFullYear()}-${String(seq).padStart(3, "0")}`;
 
+    // Lista blanca de campos: cualquier otro dato se descarta
     const record = {
       id,
-      giroId: String(metadata?.giroId || "tienda_ropa"),
-      giroNombre: String(metadata?.giroNombre || "Comercio Minorista"),
-      parroquia: String(metadata?.parroquia || "Maldonado"),
-      checklistConteo: String(metadata?.checklistConteo || "0/6"),
-      estado,
-      observacion: String(
-        metadata?.observacion ||
-        "Recibido en bandeja de pre-validación bajo convenio. En espera de revisión de requisitos no sensibles."
-      ),
-      fechaEnvio: metadata?.fechaEnvio || new Date().toLocaleString("es-EC", { dateStyle: "short", timeStyle: "short" })
+      origen: metadata?.origen === "ciudadano" ? "ciudadano" : "demo",
+      giroId: String(metadata?.giroId || ""),
+      giroNombre: String(metadata?.giroNombre || "Comercio"),
+      ciiu: String(metadata?.ciiu || ""),
+      parroquia: String(metadata?.parroquia || ""),
+      checklistConteo: String(metadata?.checklistConteo || "0/0"),
+      pasosConteo: String(metadata?.pasosConteo || ""),
+      alertasSuperadas: String(metadata?.alertasSuperadas || "0/0"),
+      estado: "Pendiente",
+      motivo: "",
+      codigoPase: "",
+      observacion: "",
+      vistoPorCiudadano: true,
+      fechaEnvio: new Date().toLocaleString("es-EC", { dateStyle: "short", timeStyle: "short" })
     };
 
-    const updated = [record, ...inbox.filter(item => item.id !== record.id)].slice(0, 20);
+    const updated = [record, ...inbox].slice(0, 20);
     await this.setItem(this.config.storageKeys.prevalidationInbox, updated);
 
     await this.recordAnonymousMetric({
@@ -323,21 +334,31 @@ class CivikaRepository {
     return record;
   }
 
-  async updatePrevalidationStatus(expedienteId, nuevoEstado, observacion = "") {
-    const allowedStates = ["Pendiente", "Visto Bueno", "Observado"];
+  async updatePrevalidationStatus(expedienteId, nuevoEstado, extra = {}) {
+    const allowedStates = ["Pendiente", "Pre-Aprobado", "Observado"];
     if (!allowedStates.includes(nuevoEstado)) return null;
+    const data = typeof extra === "string" ? { observacion: extra } : (extra || {});
     const inbox = await this.ensureSeedPrevalidationInbox();
     const updated = inbox.map(item => {
       if (item.id !== expedienteId) return item;
       return {
         ...item,
         estado: nuevoEstado,
-        observacion: observacion ? String(observacion) : item.observacion,
+        motivo: String(data.motivo ?? item.motivo ?? ""),
+        codigoPase: String(data.codigoPase ?? item.codigoPase ?? ""),
+        observacion: String(data.observacion ?? item.observacion ?? ""),
+        vistoPorCiudadano: nuevoEstado === "Pendiente",
         actualizadoEn: new Date().toLocaleString("es-EC", { dateStyle: "short", timeStyle: "short" })
       };
     });
     await this.setItem(this.config.storageKeys.prevalidationInbox, updated);
     return updated.find(item => item.id === expedienteId) || null;
+  }
+
+  async markPrevalidationSeen(ids = []) {
+    const inbox = await this.ensureSeedPrevalidationInbox();
+    const updated = inbox.map(item => ids.includes(item.id) ? { ...item, vistoPorCiudadano: true } : item);
+    await this.setItem(this.config.storageKeys.prevalidationInbox, updated);
   }
 
   /**

@@ -965,6 +965,21 @@ class CivikaAudioController {
     if (this.synth && typeof this.synth.onvoiceschanged !== "undefined") {
       this.synth.onvoiceschanged = () => { this._cachedVoice = this._pickSpanishVoice(); };
     }
+    // Al salir o recargar la página, detener la lectura (Chrome la continúa si no se cancela)
+    window.addEventListener("pagehide", () => { try { this.synth && this.synth.cancel(); } catch (e) { /* nada */ } });
+    // Si la interfaz se re-dibuja mientras suena el audio, re-vincular el botón activo
+    const watch = () => {
+      if (!document.body || typeof MutationObserver === "undefined") return;
+      let queued = false;
+      new MutationObserver(() => {
+        if (this.state === "idle" || queued) return;
+        if (this.activeBtn && this.activeBtn.isConnected) return;
+        queued = true;
+        requestAnimationFrame(() => { queued = false; this.refresh(); });
+      }).observe(document.body, { childList: true, subtree: true });
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watch);
+    else watch();
   }
 
   _pickSpanishVoice() {
@@ -1014,6 +1029,11 @@ class CivikaAudioController {
       if (window.lucide) window.lucide.createIcons();
     }
 
+    const setDis = (id, dis) => { const el = document.getElementById(id); if (el) el.disabled = dis; };
+    setDis("audioGlobalPause", this.state !== "playing");
+    setDis("audioGlobalResume", this.state !== "paused");
+    setDis("audioGlobalStop", this.state === "idle");
+
     this._renderFloatingBar();
   }
 
@@ -1055,83 +1075,100 @@ class CivikaAudioController {
   }
 
   toggle(text, btnEl = null, title = "Guía Cívika") {
-    if (btnEl && this.activeBtn === btnEl && this.state !== "idle") {
+    // El mismo contenido (aunque el botón se haya re-renderizado) alterna pausa/reanudar
+    const activeGone = !this.activeBtn || !this.activeBtn.isConnected;
+    const sameContent = this.state !== "idle" && (
+      (btnEl && this.activeBtn === btnEl) || (activeGone && title && this.activeTitle === title)
+    );
+    if (sameContent) {
+      if (btnEl) this.activeBtn = btnEl;
       this.togglePause();
       return;
     }
     this.play(text, btnEl, title);
   }
 
+  /** Divide en frases cortas: evita el corte a ~15 s de Chrome y permite reanudar donde quedó */
+  _chunk(text) {
+    const parts = text.match(/[^.!?;:]+[.!?;:]*/g) || [text];
+    const chunks = [];
+    let cur = "";
+    parts.forEach(p => {
+      const piece = p.trim();
+      if (!piece) return;
+      if ((cur + " " + piece).trim().length > 220 && cur) { chunks.push(cur.trim()); cur = piece; }
+      else cur = (cur + " " + piece).trim();
+    });
+    if (cur) chunks.push(cur.trim());
+    return chunks;
+  }
+
+  _speakFrom(index) {
+    const token = ++this._playToken;
+    if (index >= this.chunks.length) { this._finish(); return; }
+    this.chunkIndex = index;
+    const utt = new SpeechSynthesisUtterance(this.chunks[index]);
+    const voice = this._cachedVoice || this._pickSpanishVoice();
+    if (voice) { utt.voice = voice; utt.lang = voice.lang; } else { utt.lang = "es-EC"; }
+    utt.rate = 0.98;
+    utt.pitch = 1.0;
+    utt.onend = () => {
+      if (token !== this._playToken || this.state !== "playing") return;
+      this._speakFrom(index + 1);
+    };
+    utt.onerror = (ev) => {
+      if (token !== this._playToken) return;
+      if (ev && (ev.error === "interrupted" || ev.error === "canceled")) return;
+      this._finish();
+    };
+    this.utterance = utt;
+    try { this.synth.speak(utt); } catch (e) { this._finish(); }
+  }
+
+  _finish() {
+    this._playToken++;
+    this.utterance = null;
+    this.chunks = [];
+    this.chunkIndex = 0;
+    this.state = "idle";
+    this.activeBtn = null;
+    this.activeTitle = "";
+    this._syncButtons();
+  }
+
   play(text, btnEl = null, title = "Guía Cívika") {
-    if (!this.synth) {
+    if (!this.synth || typeof window.SpeechSynthesisUtterance === "undefined") {
       if (typeof window.civikaToast === "function") {
         window.civikaToast("Tu navegador no soporta lectura en voz alta.");
       }
       return;
     }
-
     const clean = this._cleanText(text);
     if (!clean) return;
 
     this.stop();
-    const token = ++this._playToken;
-
-    const utt = new SpeechSynthesisUtterance(clean);
-    const voice = this._cachedVoice || this._pickSpanishVoice();
-    if (voice) {
-      utt.voice = voice;
-      utt.lang = voice.lang;
-    } else {
-      utt.lang = "es-EC";
-    }
-    utt.rate = 0.98;
-    utt.pitch = 1.0;
-
-    this.utterance = utt;
+    this.chunks = this._chunk(clean);
     this.activeBtn = btnEl || null;
     this.activeTitle = title || "Guía Cívika";
     this.state = "playing";
     this._syncButtons();
-
-    utt.onend = () => {
-      if (token !== this._playToken) return;
-      this.state = "idle";
-      this.utterance = null;
-      this.activeBtn = null;
-      this._syncButtons();
-    };
-
-    utt.onerror = () => {
-      if (token !== this._playToken) return;
-      this.state = "idle";
-      this.utterance = null;
-      this.activeBtn = null;
-      this._syncButtons();
-    };
-
-    try {
-      this.synth.speak(utt);
-    } catch (e) {
-      this.stop();
-    }
+    this._speakFrom(0);
   }
 
   pause() {
     if (!this.synth || this.state !== "playing") return;
-    try {
-      this.synth.pause();
-      this.state = "paused";
-      this._syncButtons();
-    } catch (e) { /* algunos navegadores móviles no soportan pause */ }
+    // Se cancela y se recuerda la frase actual: funciona igual en Chrome, Safari y Android
+    this.state = "paused";
+    this._playToken++;
+    try { this.synth.cancel(); } catch (e) { /* ignorar */ }
+    this._syncButtons();
   }
 
   resume() {
     if (!this.synth || this.state !== "paused") return;
-    try {
-      this.synth.resume();
-      this.state = "playing";
-      this._syncButtons();
-    } catch (e) { /* ignorar */ }
+    this.state = "playing";
+    this._syncButtons();
+    this._speakFrom(this.chunkIndex || 0);
   }
 
   togglePause() {
@@ -1145,8 +1182,22 @@ class CivikaAudioController {
       try { this.synth.cancel(); } catch (e) { /* ignorar */ }
     }
     this.utterance = null;
+    this.chunks = [];
+    this.chunkIndex = 0;
     this.state = "idle";
     this.activeBtn = null;
+    this.activeTitle = "";
+    this._syncButtons();
+  }
+
+  /** Re-vincula el botón activo después de que la interfaz se vuelva a dibujar */
+  refresh() {
+    if (this.state === "idle") return;
+    if (this.activeBtn && this.activeBtn.isConnected) return;
+    const sel = `[data-audio-title="${(window.CSS && CSS.escape) ? CSS.escape(this.activeTitle) : this.activeTitle}"]`;
+    const found = document.querySelector(sel);
+    if (!found) return; // nada que re-vincular (evita ciclos con la barra flotante)
+    this.activeBtn = found;
     this._syncButtons();
   }
 }
