@@ -667,6 +667,10 @@ class CivikaAssistant {
    * Dictado por voz (Web Speech API, español). Muestra lo que escuchas mientras hablas,
    * envía la pregunta al terminar y explica con claridad cualquier problema (permisos, navegador, red).
    */
+  speakText(text, btnEl = null, title = "Guía Cívika") {
+    if (window.civikaAudio) window.civikaAudio.toggle(text, btnEl, title);
+  }
+
   setupSpeechRecognition() {
     this.SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition || null;
     this.recognition = null;
@@ -718,7 +722,7 @@ class CivikaAssistant {
   }
   // ---- Dictado por grabación + transcripción en el servidor (Streamlit) ----
   async startRecordedDictation() {
-    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nada */ }
+    try { if (window.civikaAudio) window.civikaAudio.stop(); else if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nada */ }
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
@@ -820,7 +824,7 @@ class CivikaAssistant {
 
   startVoiceInput() {
     // Se calla la lectura en voz alta para que el micrófono no la escuche
-    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nada */ }
+    try { if (window.civikaAudio) window.civikaAudio.stop(); else if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nada */ }
 
     const rec = new this.SpeechRecognitionAPI();   // instancia nueva en cada uso: más estable en Chrome/Android
     this.recognition = rec;
@@ -944,4 +948,208 @@ class CivikaAssistant {
   }
 }
 
+/**
+ * Controlador Singleton de Audio Guía (Text-to-Speech en es-EC / es-ES)
+ * Cancela cualquier audio previo antes de iniciar uno nuevo, soporta reproducir,
+ * pausar, reanudar y detener, y sincroniza el estado visual de los botones.
+ */
+class CivikaAudioController {
+  constructor() {
+    this.synth = window.speechSynthesis || null;
+    this.utterance = null;
+    this.activeBtn = null;
+    this.activeTitle = "";
+    this.state = "idle"; // "idle" | "playing" | "paused"
+    this._playToken = 0;
+
+    if (this.synth && typeof this.synth.onvoiceschanged !== "undefined") {
+      this.synth.onvoiceschanged = () => { this._cachedVoice = this._pickSpanishVoice(); };
+    }
+  }
+
+  _pickSpanishVoice() {
+    if (!this.synth || typeof this.synth.getVoices !== "function") return null;
+    const voices = this.synth.getVoices() || [];
+    return (
+      voices.find(v => /^es[-_]?EC/i.test(v.lang)) ||
+      voices.find(v => /^es[-_]?ES/i.test(v.lang)) ||
+      voices.find(v => /^es/i.test(v.lang)) ||
+      null
+    );
+  }
+
+  _cleanText(text) {
+    return String(text || "")
+      .replace(/\*\*|\*|`/g, "")
+      .replace(/[•✓✔🔗🎉🎙️🪪🚦📍]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  _saveButtonOriginal(btn) {
+    if (!btn || btn.dataset.audioOrigHtml) return;
+    btn.dataset.audioOrigHtml = btn.innerHTML;
+    btn.dataset.audioOrigClass = btn.className;
+  }
+
+  _syncButtons() {
+    document.querySelectorAll("[data-audio-state]").forEach(b => {
+      if (b !== this.activeBtn || this.state === "idle") {
+        if (b.dataset.audioOrigHtml) b.innerHTML = b.dataset.audioOrigHtml;
+        if (b.dataset.audioOrigClass) b.className = b.dataset.audioOrigClass;
+        b.removeAttribute("data-audio-state");
+        b.setAttribute("aria-pressed", "false");
+      }
+    });
+
+    if (this.activeBtn && this.state !== "idle") {
+      this._saveButtonOriginal(this.activeBtn);
+      this.activeBtn.setAttribute("data-audio-state", this.state);
+      this.activeBtn.setAttribute("aria-pressed", this.state === "playing" ? "true" : "false");
+      const label = this.state === "playing" ? "Pausar audio" : "Reanudar audio";
+      const icon = this.state === "playing" ? "pause" : "play";
+      this.activeBtn.classList.add("ring-2", "ring-blue-400", "bg-blue-600", "text-white");
+      this.activeBtn.classList.remove("bg-blue-50", "text-blue-700", "bg-white/20");
+      this.activeBtn.innerHTML = `<i data-lucide="${icon}" class="w-3.5 h-3.5"></i><span>${label}</span>`;
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    this._renderFloatingBar();
+  }
+
+  _renderFloatingBar() {
+    let bar = document.getElementById("civikaAudioBar");
+    if (this.state === "idle") {
+      if (bar) bar.classList.add("hidden");
+      return;
+    }
+
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "civikaAudioBar";
+      bar.setAttribute("role", "region");
+      bar.setAttribute("aria-label", "Controles de Audio Guía");
+      bar.className = "fixed bottom-16 sm:bottom-4 left-1/2 -translate-x-1/2 z-[9000] bg-slate-900 text-white px-3.5 py-2 rounded-2xl shadow-xl border border-slate-700 flex items-center gap-2.5 text-xs max-w-[92vw]";
+      document.body.appendChild(bar);
+    }
+
+    const isPlaying = this.state === "playing";
+    const safeTitle = String(this.activeTitle || "Audio Guía Cívika").replace(/[<>&"]/g, "");
+    bar.classList.remove("hidden");
+    bar.innerHTML = `
+      <span class="w-2 h-2 rounded-full ${isPlaying ? "bg-emerald-400 animate-pulse" : "bg-amber-400"} shrink-0"></span>
+      <span class="font-semibold truncate max-w-[160px] sm:max-w-[240px]">${isPlaying ? "Leyendo:" : "Pausado:"} ${safeTitle}</span>
+      <button type="button" onclick="window.civikaAudio.togglePause()"
+              class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold flex items-center gap-1 shrink-0 cursor-pointer">
+        <i data-lucide="${isPlaying ? "pause" : "play"}" class="w-3.5 h-3.5"></i>
+        <span>${isPlaying ? "Pausar" : "Reanudar"}</span>
+      </button>
+      <button type="button" onclick="window.civikaAudio.stop()"
+              class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-rose-600 text-white font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+              title="Detener audio">
+        <i data-lucide="square" class="w-3.5 h-3.5"></i>
+        <span>Detener</span>
+      </button>
+    `;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  toggle(text, btnEl = null, title = "Guía Cívika") {
+    if (btnEl && this.activeBtn === btnEl && this.state !== "idle") {
+      this.togglePause();
+      return;
+    }
+    this.play(text, btnEl, title);
+  }
+
+  play(text, btnEl = null, title = "Guía Cívika") {
+    if (!this.synth) {
+      if (typeof window.civikaToast === "function") {
+        window.civikaToast("Tu navegador no soporta lectura en voz alta.");
+      }
+      return;
+    }
+
+    const clean = this._cleanText(text);
+    if (!clean) return;
+
+    this.stop();
+    const token = ++this._playToken;
+
+    const utt = new SpeechSynthesisUtterance(clean);
+    const voice = this._cachedVoice || this._pickSpanishVoice();
+    if (voice) {
+      utt.voice = voice;
+      utt.lang = voice.lang;
+    } else {
+      utt.lang = "es-EC";
+    }
+    utt.rate = 0.98;
+    utt.pitch = 1.0;
+
+    this.utterance = utt;
+    this.activeBtn = btnEl || null;
+    this.activeTitle = title || "Guía Cívika";
+    this.state = "playing";
+    this._syncButtons();
+
+    utt.onend = () => {
+      if (token !== this._playToken) return;
+      this.state = "idle";
+      this.utterance = null;
+      this.activeBtn = null;
+      this._syncButtons();
+    };
+
+    utt.onerror = () => {
+      if (token !== this._playToken) return;
+      this.state = "idle";
+      this.utterance = null;
+      this.activeBtn = null;
+      this._syncButtons();
+    };
+
+    try {
+      this.synth.speak(utt);
+    } catch (e) {
+      this.stop();
+    }
+  }
+
+  pause() {
+    if (!this.synth || this.state !== "playing") return;
+    try {
+      this.synth.pause();
+      this.state = "paused";
+      this._syncButtons();
+    } catch (e) { /* algunos navegadores móviles no soportan pause */ }
+  }
+
+  resume() {
+    if (!this.synth || this.state !== "paused") return;
+    try {
+      this.synth.resume();
+      this.state = "playing";
+      this._syncButtons();
+    } catch (e) { /* ignorar */ }
+  }
+
+  togglePause() {
+    if (this.state === "playing") this.pause();
+    else if (this.state === "paused") this.resume();
+  }
+
+  stop() {
+    this._playToken++;
+    if (this.synth) {
+      try { this.synth.cancel(); } catch (e) { /* ignorar */ }
+    }
+    this.utterance = null;
+    this.state = "idle";
+    this.activeBtn = null;
+    this._syncButtons();
+  }
+}
+
+window.civikaAudio = new CivikaAudioController();
 window.CivikaAssistant = CivikaAssistant;

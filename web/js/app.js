@@ -45,6 +45,9 @@ class CivikaApp {
     this.diagnosticAnswers = {};
     this.checklistChecks = {};
     this.activePillarTab = {};
+    this.stageProgress = {};
+    this.officerUnlocked = false;
+    try { this.officerUnlocked = sessionStorage.getItem("civika_officer_pin_ok") === "1"; } catch (e) { /* nada */ }
 
     // Estado del Auditor Pre-Ventanilla (Client-Side)
     this.auditedDocuments = [];
@@ -227,6 +230,9 @@ class CivikaApp {
 
     if (window.civikaUI) window.civikaUI.closeDrawer();
     if (window.civikaFeatures) window.civikaFeatures.onScreenChange(screenId, previous);
+    if (screenId === "screen-officer") {
+      this.renderOfficerGateAndInbox();
+    }
 
     window.scrollTo({ top: 0, behavior: "auto" });
 
@@ -289,16 +295,39 @@ class CivikaApp {
   }
 
   /**
-   * Lectura por Voz (Text-to-Speech) para cualquier paso o guía de la app
+   * Lectura por Voz (Text-to-Speech) para cualquier paso o negocio de la app
    */
   speakStepGuide(stepId, btnEl = null) {
     const step = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales.find(s => s.id === stepId);
     if (!step || !this.assistant) return;
 
-    const speechText = `Paso ${step.paso}: ${step.nombre}. ¿Qué debes hacer? ${step.queHacer}. ` +
-      `Previene rechazo en ventanilla: ${step.pilares?.pasosConPrevencion?.[0]?.alertaCritica || step.queRevisar[0]}. ` +
+    const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId);
+    const checks = (step.pilares?.checklistPersonalizado || []).slice(0, 3).map(c => c.item).join(". ");
+    const bizAlert = biz?.alertasAntiRechazo?.[0] || "";
+    const speechText = `Paso ${step.paso}: ${step.nombre}, en ${step.entidad}. ` +
+      `Qué debes hacer: ${step.queHacer}. ` +
+      (checks ? `Requisitos clave: ${checks}. ` : "") +
+      `Prevención de rechazo: ${bizAlert || step.pilares?.pasosConPrevencion?.[0]?.alertaCritica || step.queRevisar[0]}. ` +
       `Costo oficial: ${step.costo}.`;
-    this.assistant.speakText(speechText, btnEl);
+    this.assistant.speakText(speechText, btnEl, `Paso ${step.paso}: ${step.nombre}`);
+  }
+
+  speakBusinessGuide(bizId = this.selectedBusinessId, btnEl = null) {
+    const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === bizId);
+    if (!biz || !this.assistant) return;
+
+    const entidades = (biz.entidadesInvolucradas || []).join(", ");
+    const reqs = (biz.documentacionRequerida || []).slice(0, 4).join(". ");
+    const alerta = (biz.alertasAntiRechazo || [])[0] || biz.advertenciaSector || "";
+    const rec = (biz.recomendacionesEspecificas || [])[0] || "";
+    const speechText = `Guía para ${biz.nombre}, categoría ${biz.categoria}. ` +
+      (entidades ? `Entidades involucradas: ${entidades}. ` : "") +
+      `Régimen S R I: ${biz.regimenRecomendado}. ` +
+      `Control sanitario: ${biz.requiereArcsa}. ` +
+      (reqs ? `Requisitos principales: ${reqs}. ` : "") +
+      (alerta ? `Alerta anti-rechazo: ${alerta}. ` : "") +
+      (rec ? `Recomendación: ${rec}.` : "");
+    this.assistant.speakText(speechText, btnEl, biz.nombre);
   }
 
   // ==============================================================
@@ -314,7 +343,7 @@ class CivikaApp {
       const isSelected = biz.id === this.selectedBusinessId;
 
       return `
-        <button type="button" onclick="civikaApp.selectBusiness('${biz.id}'); if (window.civikaUI) civikaUI.afterBusinessPick();"
+        <button type="button" onclick="civikaApp.selectBusiness('${biz.id}', true);"
              aria-pressed="${isSelected}"
              class="biz-card-item w-full text-left bg-white rounded-2xl p-3 sm:p-3.5 border transition-all cursor-pointer flex items-center justify-between group ${
                isSelected
@@ -344,9 +373,9 @@ class CivikaApp {
             </div>
           </div>
 
-          <div class="hidden sm:block text-slate-400 group-hover:text-blue-600 transition pl-2 shrink-0">
+          <span class="text-slate-400 group-hover:text-blue-600 transition pl-2 shrink-0 flex items-center" aria-hidden="true">
             <i data-lucide="chevron-right" class="w-5 h-5"></i>
-          </div>
+          </span>
         </button>
       `;
     }).join('');
@@ -356,7 +385,7 @@ class CivikaApp {
     }
   }
 
-  selectBusiness(bizId) {
+  selectBusiness(bizId, scrollToDoc = false) {
     const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === bizId);
     if (!biz) return;
 
@@ -376,6 +405,13 @@ class CivikaApp {
     this.renderUnifiedFormsAndProcedures();
     this.renderGovukPassportWizardSection();
     this.saveStateToStorage();
+
+    if (scrollToDoc) {
+      setTimeout(() => {
+        const docEl = document.getElementById("selectedBusinessDocSection");
+        if (docEl) docEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
   }
 
   renderSelectedBusinessDocumentation() {
@@ -384,17 +420,43 @@ class CivikaApp {
 
     const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId)
       || CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes[0];
+    const entidades = biz.entidadesInvolucradas || [];
+    const alertas = biz.alertasAntiRechazo || [];
+    const recomendaciones = biz.recomendacionesEspecificas || [];
 
     container.innerHTML = `
       <div class="card card-pad space-y-5 animate-fade-in">
-        <div class="flex items-start gap-3">
-          <span class="feature-icon"><i data-lucide="${biz.icono}"></i></span>
-          <div class="min-w-0">
-            <p class="eyebrow">Expediente personalizado · CIIU ${biz.ciiuReferencia ? biz.ciiuReferencia.split(' ')[0] : ''}</p>
-            <h4 class="text-lg font-semibold text-slate-900 leading-snug mt-0.5">${biz.nombre}</h4>
-            <p class="text-sm text-slate-500">${biz.categoria}</p>
+        <div class="flex items-start justify-between gap-3 flex-wrap">
+          <div class="flex items-start gap-3 min-w-0">
+            <span class="feature-icon"><i data-lucide="${biz.icono}"></i></span>
+            <div class="min-w-0">
+              <p class="eyebrow">Expediente personalizado · CIIU ${biz.ciiuReferencia ? biz.ciiuReferencia.split(' ')[0] : ''}</p>
+              <h4 class="text-lg font-semibold text-slate-900 leading-snug mt-0.5">${biz.nombre}</h4>
+              <p class="text-sm text-slate-500">${biz.categoria}</p>
+            </div>
           </div>
+          <button type="button"
+                  onclick="civikaApp.speakBusinessGuide('${biz.id}', this)"
+                  class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold flex items-center gap-1.5 transition shrink-0 cursor-pointer"
+                  title="Escuchar guía completa de este giro">
+            <i data-lucide="volume-2" class="w-4 h-4"></i>
+            <span>Escuchar guía</span>
+          </button>
         </div>
+
+        ${entidades.length ? `
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Entidades involucradas en este giro</p>
+            <div class="flex flex-wrap gap-1.5">
+              ${entidades.map(ent => `
+                <span class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 border border-slate-200">
+                  <i data-lucide="building-2" class="w-3 h-3 text-blue-600"></i>
+                  <span>${ent}</span>
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
 
         <dl class="grid sm:grid-cols-2 gap-3">
           <div class="rounded-lg border border-slate-200 p-3.5">
@@ -408,7 +470,7 @@ class CivikaApp {
         </dl>
 
         <div>
-          <h5 class="text-sm font-semibold text-slate-900 mb-2">Requisitos para tu carpeta</h5>
+          <h5 class="text-sm font-semibold text-slate-900 mb-2">Requisitos específicos para tu carpeta</h5>
           <ul class="space-y-2">
             ${biz.documentacionRequerida.map(doc => `
               <li class="flex items-start gap-2.5 text-sm text-slate-700 leading-relaxed">
@@ -418,6 +480,30 @@ class CivikaApp {
             `).join('')}
           </ul>
         </div>
+
+        ${alertas.length ? `
+          <div class="rounded-xl bg-rose-50 border border-rose-200 p-3.5 space-y-1.5 text-sm">
+            <p class="font-bold text-rose-900 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-rose-600"></i>
+              <span>Alertas anti-rechazo en ventanilla</span>
+            </p>
+            <ul class="space-y-1 text-xs text-rose-950 leading-relaxed">
+              ${alertas.map(a => `<li class="flex items-start gap-2"><span class="text-rose-600 font-bold">•</span><span>${a}</span></li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
+
+        ${recomendaciones.length ? `
+          <div class="rounded-xl bg-emerald-50/70 border border-emerald-200 p-3.5 space-y-1.5 text-sm">
+            <p class="font-bold text-emerald-900 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+              <i data-lucide="lightbulb" class="w-4 h-4 text-emerald-600"></i>
+              <span>Recomendaciones específicas</span>
+            </p>
+            <ul class="space-y-1 text-xs text-emerald-950 leading-relaxed">
+              ${recomendaciones.map(r => `<li class="flex items-start gap-2"><span class="text-emerald-600 font-bold">•</span><span>${r}</span></li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
 
         <div class="rounded-lg bg-amber-50 border border-amber-200 p-3.5 flex items-start gap-2.5 text-sm">
           <i data-lucide="triangle-alert" class="w-4 h-4 text-amber-700 shrink-0 mt-0.5"></i>
@@ -447,44 +533,197 @@ class CivikaApp {
     this.renderUnifiedFormsAndProcedures();
   }
 
+  async completeStageAndNext(stepId, currentStageKey, nextPillarTab = null) {
+    const stageState = {
+      diagnostico: false,
+      checklist: false,
+      antiRechazo: false,
+      planB: false,
+      ...(this.stageProgress[stepId] || {})
+    };
+    stageState[currentStageKey] = true;
+    this.stageProgress[stepId] = stageState;
+
+    if (window.civikaDB && typeof window.civikaDB.setStepStageState === "function") {
+      await window.civikaDB.setStepStageState(stepId, currentStageKey, true);
+    } else {
+      this.saveStateToStorage();
+    }
+
+    if (nextPillarTab) {
+      this.activePillarTab[stepId] = nextPillarTab;
+    }
+    this.renderUnifiedFormsAndProcedures();
+  }
+
   selectDiagnosticOption(stepId, questionId, optionValue) {
     const key = `${stepId}__${questionId}`;
     this.diagnosticAnswers[key] = optionValue;
+    const stageState = {
+      diagnostico: false,
+      checklist: false,
+      antiRechazo: false,
+      planB: false,
+      ...(this.stageProgress[stepId] || {})
+    };
+    stageState.diagnostico = true;
+    this.stageProgress[stepId] = stageState;
+    if (window.civikaDB && typeof window.civikaDB.setStepStageState === "function") {
+      window.civikaDB.setStepStageState(stepId, "diagnostico", true);
+    }
     this.saveStateToStorage();
     this.renderUnifiedFormsAndProcedures();
   }
 
-  toggleSubChecklist(checkId) {
+  toggleSubChecklist(checkId, stepId = null) {
     this.checklistChecks[checkId] = !this.checklistChecks[checkId];
+    if (stepId) {
+      const step = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales.find(s => s.id === stepId);
+      const list = step?.pilares?.checklistPersonalizado || [];
+      const done = list.filter(c => this.checklistChecks[c.id]).length;
+      const stageState = {
+        diagnostico: false,
+        checklist: false,
+        antiRechazo: false,
+        planB: false,
+        ...(this.stageProgress[stepId] || {})
+      };
+      stageState.checklist = list.length > 0 && done >= list.length;
+      this.stageProgress[stepId] = stageState;
+      if (window.civikaDB && typeof window.civikaDB.setStepStageState === "function") {
+        window.civikaDB.setStepStageState(stepId, "checklist", stageState.checklist);
+      }
+    }
     this.saveStateToStorage();
     this.renderUnifiedFormsAndProcedures();
+  }
+
+  /**
+   * Evalúa respuestas del diagnóstico + giro de negocio + tenencia para detectar inconsistencias reales
+   */
+  evaluateStepDiagnostic(step, biz) {
+    const p = step.pilares || {};
+    const questions = p.diagnosticoRapido || [];
+    const answers = {};
+    let hasAnsweredAny = false;
+
+    questions.forEach(q => {
+      const key = `${step.id}__${q.id}`;
+      if (this.diagnosticAnswers[key]) hasAnsweredAny = true;
+      answers[q.id] = this.diagnosticAnswers[key] || q.opciones[0]?.valor || "";
+    });
+
+    const allAnswerValues = Object.values(answers).join(" ").toLowerCase();
+    const isNoLocalBiz = Array.isArray(biz.pasosNoAplicanSinLocal) && biz.pasosNoAplicanSinLocal.includes(step.id);
+    const requiresPhysicalLocal = ["cafeteria", "restaurante", "micromercado", "tienda_ropa", "taller", "peluqueria", "farmacia"].includes(biz.id);
+    const tenencia = String(this.draftForm?.tenenciaLocal || "").toLowerCase();
+
+    // 1. Inconsistencia: giro que requiere local físico pero marcado como sin local / domicilio sin atención
+    if (requiresPhysicalLocal && (allAnswerValues.includes("sin_local") || allAnswerValues.includes("domicilio_sin_atencion") || tenencia === "sin_local")) {
+      return {
+        hasInconsistency: true,
+        isReady: hasAnsweredAny,
+        badge: "Inconsistencia detectada",
+        title: `${biz.nombre} requiere local físico habilitado`,
+        detail: `Seleccionaste "${biz.nombre}", pero la condición indica operación sin local. Para atender al público necesitas contrato o predio, Uso de Suelo (ICUS) y permiso de Bomberos${biz.id === "cafeteria" || biz.id === "restaurante" || biz.id === "farmacia" ? " además de control ARCSA" : ""}.`,
+        correction: "Corrige eligiendo si tendrás local propio/arrendado o cambia tu giro a 'Venta por Redes Sociales (sin local)'."
+      };
+    }
+
+    // 2. Inconsistencia: Profesional con título eligiendo RIMPE Popular
+    if (biz.id === "profesional" && step.id === "req_ruc" && (allAnswerValues.includes("popular") || allAnswerValues.includes("rimpe"))) {
+      return {
+        hasInconsistency: true,
+        isReady: hasAnsweredAny,
+        badge: "Alerta tributaria SRI",
+        title: "Servicios profesionales no ingresan a RIMPE",
+        detail: "Por normativa tributaria del SRI, las actividades profesionales con título están excluidas del régimen RIMPE, incluso con ventas menores a $20,000 anuales.",
+        correction: "Inscribe o actualiza tu RUC en Régimen General con facturación electrónica."
+      };
+    }
+
+    // 3. Caso Venta por Redes Sociales sin local en Bomberos o Uso de Suelo
+    if (isNoLocalBiz) {
+      return {
+        hasInconsistency: false,
+        isReady: true,
+        badge: "Paso condicional (sin local)",
+        title: "No aplica mientras operes 100% sin local",
+        detail: `Para "${biz.nombre}", ${step.nombre} normalmente no es exigible si no tienes atención presencial ni bodega abierta al público.`,
+        correction: "Confirma en el GAD Municipal solo si almacenas inventario en bodega física; de lo contrario avanza al siguiente paso."
+      };
+    }
+
+    // 4. Caso específico de Cafetería / Restaurante / Farmacia / Taller
+    if (biz.id === "taller" && step.id === "req_uso_suelo") {
+      return {
+        hasInconsistency: false,
+        isReady: hasAnsweredAny,
+        badge: "Validación previa obligatoria",
+        title: "Verifica clave catastral antes de arrendar",
+        detail: "Los talleres mecánicos o lubricadoras tienen restricción de suelo en zonas residenciales de Riobamba.",
+        correction: "Obtén el ICUS favorable antes de firmar contrato de arrendamiento."
+      };
+    }
+
+    if ((biz.id === "cafeteria" || biz.id === "restaurante") && step.id === "req_luf_final") {
+      return {
+        hasInconsistency: false,
+        isReady: hasAnsweredAny,
+        badge: "Control sanitario y LUF",
+        title: `Ruta alimentaria para ${biz.nombre}`,
+        detail: biz.requiereArcsa,
+        correction: "Verifica si tu tipología requiere permiso completo o exoneración de microempresa en ARCSA antes de ingresar carpeta."
+      };
+    }
+
+    const firstSelected = questions[0]
+      ? (questions[0].opciones.find(o => o.valor === answers[questions[0].id]) || questions[0].opciones[0])
+      : null;
+
+    return {
+      hasInconsistency: false,
+      isReady: hasAnsweredAny || questions.length > 0,
+      badge: `Diagnóstico · ${biz.nombre}`,
+      title: firstSelected ? "Ruta confirmada para tu giro" : "Diagnóstico listo",
+      detail: firstSelected ? firstSelected.resultadoRuta : step.queHacer,
+      correction: ""
+    };
   }
 
   renderFourPillarsWidget(step) {
     if (!step.pilares) return "";
     const currentTab = this.activePillarTab[step.id] || "pilar1";
     const p = step.pilares;
+    const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId)
+      || CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes[0];
 
     // Contar checks del Pilar 2
-    const totalChecks = (p.checklistPersonalizado || []).length;
-    const doneChecks = (p.checklistPersonalizado || []).filter(c => this.checklistChecks[c.id]).length;
+    const checklistItems = p.checklistPersonalizado || [];
+    const totalChecks = checklistItems.length;
+    const doneChecks = checklistItems.filter(c => this.checklistChecks[c.id]).length;
+    const stageState = this.stageProgress[step.id] || {};
+    const diagEval = this.evaluateStepDiagnostic(step, biz);
 
     let tabContentHtml = "";
 
     if (currentTab === "pilar1") {
-      // PILAR 1: Diagnóstico Rápido (2-3 preguntas filtro)
+      // ETAPA 1: Diagnóstico con lógica condicional real
       tabContentHtml = `
         <div class="space-y-2.5">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
             <span class="text-[11px] font-extrabold text-indigo-900 flex items-center gap-1">
               <i data-lucide="compass" class="w-3.5 h-3.5 text-indigo-600"></i>
-              <span>Pilar 1: Diagnóstico Rápido (Define tu ruta exacta)</span>
+              <span>Etapa 1: Diagnóstico para ${biz.nombre}</span>
+            </span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${diagEval.hasInconsistency ? 'bg-rose-100 text-rose-800' : 'bg-indigo-100 text-indigo-800'}">
+              ${diagEval.badge}
             </span>
           </div>
+
           ${(p.diagnosticoRapido || []).map(q => {
             const answerKey = `${step.id}__${q.id}`;
             const selectedVal = this.diagnosticAnswers[answerKey] || q.opciones[0]?.valor;
-            const selectedOpt = q.opciones.find(o => o.valor === selectedVal) || q.opciones[0];
 
             return `
               <div class="bg-white rounded-xl p-2.5 border border-slate-200/90 space-y-1.5">
@@ -495,7 +734,7 @@ class CivikaApp {
                     return `
                       <button type="button"
                               onclick="civikaApp.selectDiagnosticOption('${step.id}', '${q.id}', '${opt.valor}')"
-                              class="text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition ${
+                              class="text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
                                 isActive
                                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                                   : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
@@ -505,34 +744,56 @@ class CivikaApp {
                     `;
                   }).join('')}
                 </div>
-                ${selectedOpt ? `
-                  <div class="mt-1.5 p-2 bg-indigo-50/90 border border-indigo-200 rounded-lg text-[11px] text-indigo-950 flex items-start gap-1.5">
-                    <i data-lucide="arrow-right-circle" class="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5"></i>
-                    <span><strong>Tu Ruta Verificada:</strong> ${selectedOpt.resultadoRuta}</span>
-                  </div>
-                ` : ''}
               </div>
             `;
           }).join('')}
+
+          <div class="p-2.5 rounded-xl border text-[11px] space-y-1 ${
+            diagEval.hasInconsistency
+              ? 'bg-rose-50 border-rose-300 text-rose-950'
+              : 'bg-indigo-50/90 border-indigo-200 text-indigo-950'
+          }">
+            <p class="font-extrabold flex items-center gap-1.5">
+              <i data-lucide="${diagEval.hasInconsistency ? 'alert-triangle' : 'check-circle-2'}" class="w-3.5 h-3.5 ${diagEval.hasInconsistency ? 'text-rose-600' : 'text-indigo-600'} shrink-0"></i>
+              <span>${diagEval.title}</span>
+            </p>
+            <p class="leading-relaxed">${diagEval.detail}</p>
+            ${diagEval.correction ? `<p class="font-semibold pt-0.5">Cómo corregir / proceder: ${diagEval.correction}</p>` : ''}
+          </div>
+
+          <div class="flex justify-end pt-1">
+            <button type="button"
+                    onclick="civikaApp.completeStageAndNext('${step.id}', 'diagnostico', 'pilar2')"
+                    ${diagEval.hasInconsistency ? 'disabled' : ''}
+                    class="px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition ${
+                      diagEval.hasInconsistency
+                        ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xs cursor-pointer'
+                    }">
+              <span>Continuar al checklist (${doneChecks}/${totalChecks})</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
         </div>
       `;
     } else if (currentTab === "pilar2") {
-      // PILAR 2: Checklist Personalizado Interactivo con enlace oficial
+      // ETAPA 2: Checklist Personalizado Interactivo
       tabContentHtml = `
         <div class="space-y-2">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
             <span class="text-[11px] font-extrabold text-emerald-900 flex items-center gap-1">
               <i data-lucide="check-square" class="w-3.5 h-3.5 text-emerald-600"></i>
-              <span>Pilar 2: Checklist Personalizado (${doneChecks}/${totalChecks} listos)</span>
+              <span>Etapa 2: Checklist (${doneChecks}/${totalChecks} requisitos completados)</span>
             </span>
-            <a href="${step.enlaceOficial}" target="_blank" rel="noopener noreferrer"
-               class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1">
+            <button type="button"
+                    onclick="civikaApp.openPrepNoticeModal('${step.id}', 'portal')"
+                    class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer">
               <span>Fuente Oficial</span>
               <i data-lucide="external-link" class="w-3 h-3"></i>
-            </a>
+            </button>
           </div>
           <div class="space-y-1.5">
-            ${(p.checklistPersonalizado || []).map(chk => {
+            ${checklistItems.map(chk => {
               const checked = Boolean(this.checklistChecks[chk.id]);
               return `
                 <label class="flex items-start justify-between gap-2 bg-white p-2.5 rounded-xl border cursor-pointer transition ${
@@ -540,7 +801,7 @@ class CivikaApp {
                 }">
                   <div class="flex items-start gap-2">
                     <input type="checkbox" ${checked ? 'checked' : ''}
-                           onchange="civikaApp.toggleSubChecklist('${chk.id}')"
+                           onchange="civikaApp.toggleSubChecklist('${chk.id}', '${step.id}')"
                            class="mt-0.5 w-4 h-4 accent-emerald-600 rounded cursor-pointer shrink-0">
                     <span class="text-[11px] leading-snug ${checked ? 'line-through text-slate-400 font-medium' : 'text-slate-800 font-semibold'}">
                       ${chk.item}
@@ -557,16 +818,31 @@ class CivikaApp {
               `;
             }).join('')}
           </div>
+          <div class="flex justify-end pt-1">
+            <button type="button"
+                    onclick="civikaApp.completeStageAndNext('${step.id}', 'checklist', 'pilar3')"
+                    class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer">
+              <span>Continuar a Anti-Rechazo</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
         </div>
       `;
     } else if (currentTab === "pilar3") {
-      // PILAR 3: Paso a Paso con Prevención de Errores Críticos
+      // ETAPA 3: Paso a Paso + Alertas Anti-Rechazo del negocio y del trámite
+      const bizAlerts = biz.alertasAntiRechazo || [];
       tabContentHtml = `
         <div class="space-y-2">
           <span class="text-[11px] font-extrabold text-rose-900 flex items-center gap-1">
             <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-rose-600"></i>
-            <span>Pilar 3: Paso a Paso y Prevención de Rechazos en Ventanilla</span>
+            <span>Etapa 3: Prevención de Rechazos (${biz.nombre})</span>
           </span>
+          ${bizAlerts.length ? `
+            <div class="p-2 rounded-xl bg-rose-100/70 border border-rose-200 text-[11px] text-rose-950 space-y-1">
+              <p class="font-extrabold">Alerta específica para ${biz.nombre}:</p>
+              ${bizAlerts.map(a => `<p>• ${a}</p>`).join('')}
+            </div>
+          ` : ''}
           <div class="space-y-2">
             ${(p.pasosConPrevencion || []).map(pp => `
               <div class="bg-white rounded-xl p-2.5 border border-slate-200 space-y-1.5">
@@ -583,15 +859,23 @@ class CivikaApp {
               </div>
             `).join('')}
           </div>
+          <div class="flex justify-end pt-1">
+            <button type="button"
+                    onclick="civikaApp.completeStageAndNext('${step.id}', 'antiRechazo', 'pilar4')"
+                    class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer">
+              <span>Continuar a Plan B</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
         </div>
       `;
     } else if (currentTab === "pilar4") {
-      // PILAR 4: Plan B Accionable
+      // ETAPA 4: Plan B Accionable
       tabContentHtml = `
         <div class="space-y-2">
           <span class="text-[11px] font-extrabold text-amber-950 flex items-center gap-1">
             <i data-lucide="life-buoy" class="w-3.5 h-3.5 text-amber-600"></i>
-            <span>Pilar 4: Plan B Accionable (Contingencia real en Riobamba)</span>
+            <span>Etapa 4: Plan B Accionable (Contingencia real en Riobamba)</span>
           </span>
           <div class="space-y-2">
             ${(p.planBAccionable || []).map(pb => `
@@ -606,40 +890,48 @@ class CivikaApp {
               </div>
             `).join('')}
           </div>
+          <div class="flex justify-end pt-1">
+            <button type="button"
+                    onclick="civikaApp.completeStageAndNext('${step.id}', 'planB', null)"
+                    class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i>
+              <span>${stageState.planB ? 'Etapas revisadas ✓' : 'Finalizar 4 etapas'}</span>
+            </button>
+          </div>
         </div>
       `;
     }
 
     return `
       <div class="mt-3 bg-slate-50/90 border border-slate-200/90 rounded-2xl p-2.5 space-y-2.5">
-        <!-- Pestañas de los 4 Pilares -->
+        <!-- Pestañas de las 4 Etapas -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-1 text-[10px] font-extrabold">
           <button type="button" onclick="civikaApp.setPillarTab('${step.id}', 'pilar1')"
-                  class="py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 transition ${
+                  class="py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 transition cursor-pointer ${
                     currentTab === 'pilar1' ? 'bg-indigo-600 text-white shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                   }">
-            <i data-lucide="compass" class="w-3 h-3"></i>
+            <i data-lucide="${stageState.diagnostico ? 'check-circle-2' : 'compass'}" class="w-3 h-3"></i>
             <span>1. Diagnóstico</span>
           </button>
           <button type="button" onclick="civikaApp.setPillarTab('${step.id}', 'pilar2')"
-                  class="py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 transition ${
+                  class="py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 transition cursor-pointer ${
                     currentTab === 'pilar2' ? 'bg-emerald-600 text-white shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                   }">
-            <i data-lucide="check-square" class="w-3 h-3"></i>
+            <i data-lucide="${stageState.checklist ? 'check-circle-2' : 'check-square'}" class="w-3 h-3"></i>
             <span>2. Checklist (${doneChecks}/${totalChecks})</span>
           </button>
           <button type="button" onclick="civikaApp.setPillarTab('${step.id}', 'pilar3')"
-                  class="py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 transition ${
+                  class="py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 transition cursor-pointer ${
                     currentTab === 'pilar3' ? 'bg-rose-600 text-white shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                   }">
-            <i data-lucide="shield-alert" class="w-3 h-3"></i>
+            <i data-lucide="${stageState.antiRechazo ? 'check-circle-2' : 'shield-alert'}" class="w-3 h-3"></i>
             <span>3. Anti-Rechazo</span>
           </button>
           <button type="button" onclick="civikaApp.setPillarTab('${step.id}', 'pilar4')"
-                  class="py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 transition ${
+                  class="py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 transition cursor-pointer ${
                     currentTab === 'pilar4' ? 'bg-amber-600 text-white shadow-2xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                   }">
-            <i data-lucide="life-buoy" class="w-3 h-3"></i>
+            <i data-lucide="${stageState.planB ? 'check-circle-2' : 'life-buoy'}" class="w-3 h-3"></i>
             <span>4. Plan B</span>
           </button>
         </div>
@@ -754,68 +1046,90 @@ class CivikaApp {
           <!-- LOS 4 PILARES INTERACTIVOS -->
           ${this.renderFourPillarsWidget(step)}
 
-          <!-- CONEXIÓN ENTRE TRÁMITES (RUTA ENCADENADA DEL EMPRENDEDOR) -->
-          ${(isDone && step.conexionSiguienteTramite) ? `
-            <div class="mt-3 p-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs shadow-sm animate-fade-in space-y-1.5">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
-                  🔗 Ruta Encadenada Activa
-                </span>
-                <span class="text-[10px] font-bold text-emerald-100">Coherencia CIIU y Dirección</span>
+          <!-- CONEXIÓN ENTRE TRÁMITES (CONDICIONAL AL GIRO ACTUAL) -->
+          ${(() => {
+            const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId);
+            const noAplica = biz?.pasosNoAplicanSinLocal || [];
+            if (!isDone || !step.conexionSiguienteTramite) return "";
+            const nextId = step.conexionSiguienteTramite.siguienteId;
+            if (noAplica.includes(nextId)) {
+              return `
+                <div class="mt-3 p-3 rounded-xl bg-sky-50 border border-sky-200 text-sky-950 text-xs space-y-1.5">
+                  <p class="font-bold">Siguiente paso según tu giro sin local (${biz.nombre}):</p>
+                  <p class="text-[11px]">Bomberos y Uso de Suelo no aplican sin local físico. Puedes continuar directamente al Certificado de No Adeudar y Patente Municipal.</p>
+                  <button type="button"
+                          onclick="document.getElementById('step-card-req_solvencia')?.scrollIntoView({behavior:'smooth', block:'center'})"
+                          class="mt-1 inline-flex items-center gap-1 bg-sky-700 text-white font-bold text-[11px] px-3 py-1 rounded-lg hover:bg-sky-800 transition cursor-pointer">
+                    <span>Ir al Paso 04: Certificado de No Adeudar</span>
+                    <i data-lucide="arrow-down-right" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              `;
+            }
+            if (noAplica.includes(step.id)) return "";
+            return `
+              <div class="mt-3 p-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs shadow-sm animate-fade-in space-y-1.5">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
+                    Siguiente paso recomendado
+                  </span>
+                </div>
+                <p class="text-[11px] text-emerald-50 leading-relaxed">${step.conexionSiguienteTramite.mensajeEncadenado}</p>
+                ${nextId !== "pasaporte_qr" ? `
+                  <button type="button"
+                          onclick="document.getElementById('step-card-${nextId}')?.scrollIntoView({behavior:'smooth', block:'center'})"
+                          class="mt-1 inline-flex items-center gap-1 bg-white text-emerald-800 font-extrabold text-[11px] px-3 py-1 rounded-lg shadow-2xs hover:bg-emerald-50 transition cursor-pointer">
+                    <span>Ir al Paso 0${step.conexionSiguienteTramite.siguientePasoNumero}: ${step.conexionSiguienteTramite.siguienteTitulo}</span>
+                    <i data-lucide="arrow-down-right" class="w-3.5 h-3.5"></i>
+                  </button>
+                ` : `
+                  <button type="button"
+                          onclick="civikaApp.scrollToSection('govukPassportSection')"
+                          class="mt-1 inline-flex items-center gap-1 bg-amber-400 text-slate-950 font-extrabold text-[11px] px-3 py-1 rounded-lg shadow-2xs hover:bg-amber-300 transition cursor-pointer">
+                    <span>Generar mi Pasaporte de Trámite con Código QR</span>
+                    <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+                  </button>
+                `}
               </div>
-              <p class="text-[11px] text-emerald-50 leading-relaxed">${step.conexionSiguienteTramite.mensajeEncadenado}</p>
-              ${step.conexionSiguienteTramite.siguienteId !== "pasaporte_qr" ? `
-                <button type="button"
-                        onclick="document.getElementById('step-card-${step.conexionSiguienteTramite.siguienteId}')?.scrollIntoView({behavior:'smooth', block:'center'})"
-                        class="mt-1 inline-flex items-center gap-1 bg-white text-emerald-800 font-extrabold text-[11px] px-3 py-1 rounded-lg shadow-2xs hover:bg-emerald-50 transition">
-                  <span>Ir al Paso 0${step.conexionSiguienteTramite.siguientePasoNumero}: ${step.conexionSiguienteTramite.siguienteTitulo}</span>
-                  <i data-lucide="arrow-down-right" class="w-3.5 h-3.5"></i>
-                </button>
-              ` : `
-                <button type="button"
-                        onclick="civikaApp.scrollToSection('govukPassportSection')"
-                        class="mt-1 inline-flex items-center gap-1 bg-amber-400 text-slate-950 font-extrabold text-[11px] px-3 py-1 rounded-lg shadow-2xs hover:bg-amber-300 transition">
-                  <span>🪪 Generar mi Pasaporte de Trámite con Código QR</span>
-                  <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-                </button>
-              `}
-            </div>
-          ` : ''}
+            `;
+          })()}
 
           <!-- Botones de Acción del Servicio -->
           <div class="mt-3.5 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
             <button type="button"
                     onclick="civikaApp.openDocumentViewer('${step.id}', 'sheet')"
-                    class="flex-1 min-w-[155px] py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5">
+                    class="flex-1 min-w-[155px] py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
               <i data-lucide="eye" class="w-3.5 h-3.5"></i>
               <span>Ver Documento Oficial</span>
             </button>
 
             <button type="button"
                     onclick="civikaApp.openDocumentViewer('${step.id}', 'justification')"
-                    class="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-slate-200">
+                    class="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-slate-200 cursor-pointer">
               <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-600"></i>
               <span>Ficha Completa</span>
             </button>
 
             <button type="button"
                     onclick="civikaApp.downloadOrPrintDocument('${step.id}')"
-                    class="py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-emerald-200">
+                    class="py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border border-emerald-200 cursor-pointer">
               <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-600"></i>
               <span>PDF</span>
             </button>
 
-            <a href="${step.enlaceOficial}" target="_blank" rel="noopener noreferrer"
-               class="p-2 bg-white hover:bg-slate-50 text-slate-600 hover:text-blue-600 rounded-xl text-xs transition border border-slate-200 flex items-center justify-center shrink-0"
-               title="Abrir portal oficial de ${step.entidad}">
+            <button type="button"
+                    onclick="civikaApp.openPrepNoticeModal('${step.id}', 'portal')"
+                    class="p-2 bg-white hover:bg-slate-50 text-slate-600 hover:text-blue-600 rounded-xl text-xs transition border border-slate-200 flex items-center justify-center shrink-0 cursor-pointer"
+                    title="Abrir portal oficial de ${step.entidad}">
               <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-            </a>
+            </button>
           </div>
         </div>
       `;
     }).join('');
 
     if (window.civikaFeatures) window.civikaFeatures.afterStepsRender(container);
+    this.renderPrevalidationCitizenBox();
 
     const compContainer = document.getElementById("complementaryRequirementsList");
     if (compContainer) {
@@ -1870,9 +2184,114 @@ class CivikaApp {
   }
 
   // ==============================================================
-  // 8. VISUALIZADOR MODAL DE DOCUMENTO OFICIAL Y LOS 4 PILARES
+  // 8. VISUALIZADOR MODAL DE DOCUMENTO OFICIAL, AVISO PREVIO Y LOS 4 PILARES
   // ==============================================================
-  openDocumentViewer(stepId, mode = "justification") {
+  openPrepNoticeModal(stepId, actionType = "viewer", mode = "sheet") {
+    const step = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales.find(s => s.id === stepId);
+    if (!step) return;
+
+    const checklist = step.pilares?.checklistPersonalizado || [];
+    const doneChecks = checklist.filter(c => this.checklistChecks[c.id]).length;
+    const readyItems = checklist.slice(0, 4).map(c => c.item);
+
+    let modal = document.getElementById("civikaPrepNoticeModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "civikaPrepNoticeModal";
+      modal.className = "fixed inset-0 z-[9500] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4";
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) this.closePrepNoticeModal();
+      });
+      document.body.appendChild(modal);
+    }
+
+    const actionLabels = {
+      viewer: mode === "sheet" ? "Continuar y ver documento" : "Continuar y ver ficha",
+      pdf: "Continuar y descargar PDF",
+      portal: "Ir al portal oficial"
+    };
+
+    modal.classList.remove("hidden");
+    modal.innerHTML = `
+      <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-4 text-xs animate-fade-in">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-start gap-2.5">
+            <span class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <i data-lucide="info" class="w-5 h-5"></i>
+            </span>
+            <div>
+              <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Preparación antes de continuar</p>
+              <h4 class="text-sm font-extrabold text-slate-900 mt-0.5">${step.nombre}</h4>
+            </div>
+          </div>
+          <button type="button" onclick="civikaApp.closePrepNoticeModal()" class="p-1 text-slate-400 hover:text-slate-700 cursor-pointer" aria-label="Cerrar aviso">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 space-y-1">
+          <p class="font-bold">Cívika es orientación ciudadana gratuita</p>
+          <p class="leading-relaxed">Esta guía te prepara para evitar rechazos. El trámite oficial, tasas y validación legal se realizan directamente en la entidad competente:</p>
+          <p class="font-semibold pt-0.5">Institución: ${step.entidad}</p>
+          <a href="${step.enlaceOficial}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-blue-700 font-bold underline break-all">
+            <span>${step.enlaceOficial}</span>
+            <i data-lucide="external-link" class="w-3 h-3 shrink-0"></i>
+          </a>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <p class="font-bold text-slate-800">Qué tener listo antes de abrir:</p>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${doneChecks >= checklist.length && checklist.length ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">
+              Checklist: ${doneChecks}/${checklist.length}
+            </span>
+          </div>
+          <ul class="space-y-1 text-slate-700">
+            ${(readyItems.length ? readyItems : step.queRevisar || []).map(item => `
+              <li class="flex items-start gap-2">
+                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5"></i>
+                <span>${item}</span>
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button"
+                  onclick="civikaApp.closePrepNoticeModal(); civikaApp.setPillarTab('${step.id}', 'pilar2'); document.getElementById('step-card-${step.id}')?.scrollIntoView({behavior:'smooth', block:'center'});"
+                  class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold transition cursor-pointer">
+            Revisar checklist primero
+          </button>
+          <button type="button" id="civikaPrepContinueBtn"
+                  class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition shadow-xs cursor-pointer">
+            ${actionLabels[actionType] || "Continuar"}
+          </button>
+        </div>
+      </div>
+    `;
+
+    const contBtn = document.getElementById("civikaPrepContinueBtn");
+    if (contBtn) {
+      contBtn.onclick = () => {
+        this.closePrepNoticeModal();
+        if (actionType === "viewer") this.openDocumentViewer(stepId, mode, true);
+        else if (actionType === "pdf") this.downloadOrPrintDocument(stepId, true);
+        else if (actionType === "portal") window.open(step.enlaceOficial, "_blank", "noopener,noreferrer");
+      };
+    }
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  closePrepNoticeModal() {
+    const modal = document.getElementById("civikaPrepNoticeModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  openDocumentViewer(stepId, mode = "justification", skipPrep = false) {
+    if (!skipPrep) {
+      this.openPrepNoticeModal(stepId, "viewer", mode);
+      return;
+    }
     const step = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales.find(s => s.id === stepId);
     if (!step) return;
 
@@ -2292,7 +2711,11 @@ class CivikaApp {
     `;
   }
 
-  downloadOrPrintDocument(stepId) {
+  downloadOrPrintDocument(stepId, skipPrep = false) {
+    if (!skipPrep) {
+      this.openPrepNoticeModal(stepId, "pdf", "sheet");
+      return;
+    }
     const step = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales.find(s => s.id === stepId);
     if (!step) return;
 
@@ -2431,12 +2854,287 @@ class CivikaApp {
     this.saveStateToStorage();
   }
 
+  // ==============================================================
+  // 9. FLUJO DE CONVENIO (PRE-VALIDACIÓN REMOTA) Y ROL ADMINISTRATIVO (PIN 1110)
+  // ==============================================================
+  async renderPrevalidationCitizenBox() {
+    const stepsContainer = document.getElementById("unifiedStepsContainer");
+    if (!stepsContainer || !stepsContainer.parentElement) return;
+
+    let box = document.getElementById("prevalidationCitizenBox");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "prevalidationCitizenBox";
+      box.className = "mt-4";
+      stepsContainer.insertAdjacentElement("afterend", box);
+    }
+
+    const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId)
+      || CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes[0];
+    const pasos = CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales;
+    const noAplica = biz.pasosNoAplicanSinLocal || [];
+    const applicableSteps = pasos.filter(p => !noAplica.includes(p.id));
+    const doneSteps = applicableSteps.filter(p => this.stepsState[p.id]).length;
+
+    let totalChecks = 0;
+    let doneChecks = 0;
+    applicableSteps.forEach(p => {
+      const list = p.pilares?.checklistPersonalizado || [];
+      totalChecks += list.length;
+      doneChecks += list.filter(c => this.checklistChecks[c.id]).length;
+    });
+
+    const isReadyToSend = doneSteps >= applicableSteps.length || doneChecks >= Math.max(3, Math.ceil(totalChecks * 0.5));
+    const inbox = window.civikaDB && typeof window.civikaDB.getPrevalidationInbox === "function"
+      ? await window.civikaDB.getPrevalidationInbox()
+      : [];
+
+    const badgeColor = (est) => est === "Visto Bueno"
+      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+      : est === "Observado"
+        ? "bg-rose-100 text-rose-800 border-rose-200"
+        : "bg-amber-100 text-amber-800 border-amber-200";
+
+    box.innerHTML = `
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-start justify-between gap-2 flex-wrap">
+          <div>
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Convenio de Pre-Validación Remota · GAD Riobamba</p>
+            <h4 class="text-sm font-extrabold text-slate-900 mt-0.5">Enviar resumen no sensible a revisión previa</h4>
+            <p class="text-xs text-slate-600 mt-0.5">
+              Solo se envían metadatos (giro, parroquia y conteo ${doneSteps}/${applicableSteps.length} pasos · ${doneChecks}/${totalChecks} requisitos). Sin contraseñas ni cédula completa.
+            </p>
+          </div>
+          <button type="button"
+                  onclick="civikaApp.submitCitizenPrevalidation('${doneSteps}/${applicableSteps.length}')"
+                  ${isReadyToSend ? '' : 'disabled'}
+                  class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shrink-0 ${
+                    isReadyToSend
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer'
+                      : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                  }">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            <span>Enviar resumen a Pre-Validación Remota (Convenio GAD)</span>
+          </button>
+        </div>
+
+        ${!isReadyToSend ? `
+          <p class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            Marca al menos la mitad de los requisitos en tus checklists (${doneChecks}/${totalChecks}) o completa los pasos aplicables para habilitar el envío.
+          </p>
+        ` : ''}
+
+        ${inbox.length ? `
+          <div class="pt-2 border-t border-slate-100 space-y-2">
+            <p class="text-[11px] font-bold text-slate-700">Estado en bandeja de Pre-Validación (${inbox.length}):</p>
+            <div class="space-y-1.5">
+              ${inbox.slice(0, 4).map(item => `
+                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-start justify-between gap-2 flex-wrap">
+                  <div class="min-w-0">
+                    <p class="font-bold text-slate-900">${item.id} · ${item.giroNombre}</p>
+                    <p class="text-[11px] text-slate-600">Parroquia: ${item.parroquia} · Checklist: ${item.checklistConteo}</p>
+                    <p class="text-[11px] text-slate-700 mt-0.5">${item.observacion}</p>
+                  </div>
+                  <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full border shrink-0 ${badgeColor(item.estado)}">
+                    ${item.estado}
+                  </span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  async submitCitizenPrevalidation(conteoStr) {
+    if (!window.civikaDB || typeof window.civikaDB.submitToPrevalidationInbox !== "function") return;
+    const biz = CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes.find(b => b.id === this.selectedBusinessId)
+      || CIVIKA_KNOWLEDGE_BASE.emprendimientosComunes[0];
+    const record = await window.civikaDB.submitToPrevalidationInbox({
+      giroId: biz.id,
+      giroNombre: biz.nombre,
+      parroquia: this.draftForm?.parroquia || "Maldonado",
+      checklistConteo: conteoStr || "0/6",
+      estado: "Pendiente"
+    });
+    if (typeof window.civikaToast === "function") {
+      window.civikaToast(`Resumen ${record.id} enviado a Pre-Validación Remota (Pendiente)`);
+    }
+    this.renderPrevalidationCitizenBox();
+  }
+
+  async renderOfficerGateAndInbox() {
+    const screen = document.getElementById("screen-officer");
+    if (!screen) return;
+
+    const protectedChildren = Array.from(screen.children).filter(
+      el => el.id !== "officerPinGate" && el.id !== "officerPrevalidationInbox"
+    );
+
+    let gate = document.getElementById("officerPinGate");
+    if (!gate) {
+      gate = document.createElement("div");
+      gate.id = "officerPinGate";
+      screen.prepend(gate);
+    }
+
+    let inboxBox = document.getElementById("officerPrevalidationInbox");
+    if (!inboxBox) {
+      inboxBox = document.createElement("div");
+      inboxBox.id = "officerPrevalidationInbox";
+      inboxBox.className = "mt-4";
+      screen.appendChild(inboxBox);
+    }
+
+    if (!this.officerUnlocked) {
+      protectedChildren.forEach(el => el.classList.add("hidden"));
+      inboxBox.classList.add("hidden");
+      gate.classList.remove("hidden");
+      gate.innerHTML = `
+        <div class="max-w-md mx-auto bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4 my-4">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
+              <i data-lucide="lock" class="w-5 h-5"></i>
+            </span>
+            <div>
+              <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Rol Administrativo · Convenio GAD</p>
+              <h3 class="text-base font-extrabold text-slate-900">Acceso para Funcionario de Ventanilla</h3>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Ingresa el PIN institucional para revisar expedientes en Pre-Validación Remota y escanear Pasaportes QR.
+          </p>
+          <div class="space-y-2">
+            <label for="officerPinInput" class="text-xs font-bold text-slate-700 block">PIN de acceso</label>
+            <input type="password" id="officerPinInput" maxlength="8" inputmode="numeric"
+                   placeholder="Ingresa el PIN (ej. 1110)"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault(); civikaApp.unlockOfficerPin();}"
+                   class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p id="officerPinError" class="text-xs text-rose-600 font-semibold hidden"></p>
+          </div>
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <button type="button"
+                    onclick="const inp=document.getElementById('officerPinInput'); if(inp){inp.value='1110';}"
+                    class="text-[11px] font-semibold text-slate-500 hover:text-blue-700 underline cursor-pointer">
+              Autocompletar Demo (1110)
+            </button>
+            <button type="button" onclick="civikaApp.unlockOfficerPin()"
+                    class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition cursor-pointer">
+              Ingresar a Ventanilla
+            </button>
+          </div>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    gate.classList.add("hidden");
+    protectedChildren.forEach(el => el.classList.remove("hidden"));
+    inboxBox.classList.remove("hidden");
+
+    const inbox = window.civikaDB && typeof window.civikaDB.getPrevalidationInbox === "function"
+      ? await window.civikaDB.getPrevalidationInbox()
+      : [];
+
+    const badgeColor = (est) => est === "Visto Bueno"
+      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+      : est === "Observado"
+        ? "bg-rose-100 text-rose-800 border-rose-200"
+        : "bg-amber-100 text-amber-800 border-amber-200";
+
+    inboxBox.innerHTML = `
+      <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">Bandeja Remota bajo Convenio</p>
+            <h4 class="text-sm font-extrabold text-slate-900">Expedientes para Pre-Validación (${inbox.length})</h4>
+          </div>
+          <button type="button"
+                  onclick="civikaApp.officerUnlocked=false; try{sessionStorage.removeItem('civika_officer_pin_ok');}catch(e){}; civikaApp.renderOfficerGateAndInbox();"
+                  class="text-xs font-semibold text-slate-500 hover:text-slate-800 underline cursor-pointer">
+            Bloquear vista
+          </button>
+        </div>
+
+        <div class="space-y-2.5">
+          ${inbox.map(item => `
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+              <div class="flex items-start justify-between gap-2 flex-wrap">
+                <div>
+                  <p class="font-extrabold text-slate-900">${item.id} · ${item.giroNombre}</p>
+                  <p class="text-[11px] text-slate-600">Parroquia: ${item.parroquia} · Checklist: ${item.checklistConteo} · ${item.fechaEnvio || ""}</p>
+                </div>
+                <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full border ${badgeColor(item.estado)}">
+                  ${item.estado}
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-slate-200">${item.observacion}</p>
+              <div class="flex flex-wrap gap-2">
+                <button type="button"
+                        onclick="civikaApp.officerDecidePrevalidation('${item.id}', 'Visto Bueno')"
+                        class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+                  <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>
+                  <span>Visto Bueno (Listo para emisión virtual)</span>
+                </button>
+                <button type="button"
+                        onclick="civikaApp.officerDecidePrevalidation('${item.id}', 'Observado')"
+                        class="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-bold flex items-center gap-1 cursor-pointer">
+                  <i data-lucide="undo-2" class="w-3.5 h-3.5"></i>
+                  <span>Devolver con Observación</span>
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  unlockOfficerPin() {
+    const inp = document.getElementById("officerPinInput");
+    const err = document.getElementById("officerPinError");
+    const val = String(inp ? inp.value : "").trim();
+    if (val === "1110") {
+      this.officerUnlocked = true;
+      try { sessionStorage.setItem("civika_officer_pin_ok", "1"); } catch (e) { /* nada */ }
+      this.renderOfficerGateAndInbox();
+    } else if (err) {
+      err.textContent = "PIN incorrecto. Verifica con el administrador (demo: 1110).";
+      err.classList.remove("hidden");
+    }
+  }
+
+  async officerDecidePrevalidation(expedienteId, nuevoEstado) {
+    if (!window.civikaDB || typeof window.civikaDB.updatePrevalidationStatus !== "function") return;
+    let obs = "";
+    if (nuevoEstado === "Visto Bueno") {
+      obs = "Visto Bueno otorgado en Pre-Validación Remota. Expediente listo para emisión virtual / Ventanilla Única.";
+    } else {
+      const input = window.prompt("Indica el motivo específico de la observación para el ciudadano:", "Verificar compatibilidad de Uso de Suelo (ICUS) y vigencia del extintor PQS.");
+      if (input === null) return;
+      obs = input.trim() || "Devuelto con observación: revisar requisitos obligatorios del checklist.";
+    }
+    await window.civikaDB.updatePrevalidationStatus(expedienteId, nuevoEstado, obs);
+    if (typeof window.civikaToast === "function") {
+      window.civikaToast(`Expediente ${expedienteId} actualizado a: ${nuevoEstado}`);
+    }
+    this.renderOfficerGateAndInbox();
+    this.renderPrevalidationCitizenBox();
+  }
+
   async saveStateToStorage() {
     try {
       if (window.civikaDB) {
         await window.civikaDB.saveStepsProgress(this.stepsState, this.selectedBusinessId);
         await window.civikaDB.saveChecklistChecks(this.checklistChecks);
         await window.civikaDB.saveDiagnosticAnswers(this.diagnosticAnswers);
+        if (typeof window.civikaDB.saveStageProgress === "function") {
+          await window.civikaDB.saveStageProgress(this.stageProgress);
+        }
         await window.civikaDB.saveDraftForm(this.draftForm);
         await window.civikaDB.setItem("civika_easy_read_mode", this.easyReadMode);
       } else {
@@ -2456,6 +3154,9 @@ class CivikaApp {
         this.selectedBusinessId = selectedBiz;
         this.checklistChecks = await window.civikaDB.loadChecklistChecks();
         this.diagnosticAnswers = await window.civikaDB.loadDiagnosticAnswers();
+        if (typeof window.civikaDB.loadStageProgress === "function") {
+          this.stageProgress = await window.civikaDB.loadStageProgress({});
+        }
         const savedDraft = await window.civikaDB.loadDraftForm();
         this.draftForm = { ...this.draftForm, ...savedDraft };
         this.easyReadMode = Boolean(await window.civikaDB.getItem("civika_easy_read_mode", false));

@@ -741,3 +741,38 @@ html.easy-read-mode select:focus-visible { box-shadow: 0 0 0 4px #F59E0B !import
 #chatMicBtn.is-listening { background: #DC2626; border-color: #DC2626; color: #fff; animation: civikaMic 1.2s ease-in-out infinite; }
 #chatMicBtn.mic-unsupported { opacity: .5; }
 @keyframes civikaMic { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,.5); } 50% { box-shadow: 0 0 0 10px rgba(220,38,38,0); } }
+
+/* ================================================================ */
+/* 13. BARRA DE 4 ETAPAS Y CONTROLES DE AUDIO GUÍA                  */
+/* ================================================================ */
+.stages-bar { border-left: 4px solid var(--primary); }
+.stage-counter {
+  font-size: 0.72rem; font-weight: 700; color: var(--primary);
+  background: var(--primary-soft); border: 1px solid #BFDBFE;
+  padding: 0.25rem 0.65rem; border-radius: 999px;
+}
+.stage-pill {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.5rem 0.7rem; border-radius: 10px;
+  border: 1px solid var(--border); background: #fff;
+  color: var(--text-2); font-size: 0.78rem; font-weight: 650;
+  cursor: pointer; transition: all 0.15s ease; text-align: left;
+}
+.stage-pill:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+.stage-pill.is-active {
+  background: var(--primary); border-color: var(--primary); color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.stage-num {
+  width: 20px; height: 20px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 800; background: rgba(15, 23, 42, 0.08);
+  flex-shrink: 0;
+}
+.stage-pill.is-active .stage-num { background: rgba(255, 255, 255, 0.24); color: #fff; }
+.audio-controls-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem;
+  padding-top: 0.6rem; border-top: 1px solid var(--border);
+}
+[data-audio-state="playing"] { box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22); }
+[data-audio-state="paused"] { opacity: 0.92; }

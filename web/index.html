@@ -337,7 +337,86 @@
                 <h3 class="section-title mb-0">3. Trámites en orden</h3>
                 <span class="text-xs text-slate-500">SRI · Bomberos · GAD Riobamba · ARCSA</span>
               </div>
+
+              <!-- Barra superior visible de las 4 etapas -->
+              <div id="globalStagesBar" class="stages-bar card card-pad space-y-3 mb-4" role="region" aria-label="Etapas de revisión por trámite">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <p class="eyebrow">Flujo guiado en 4 etapas</p>
+                    <p class="text-xs text-slate-600 mt-0.5">Selecciona cualquier etapa para revisarla en el trámite activo.</p>
+                  </div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span id="globalStageReqCount" class="stage-counter">Checklist por paso</span>
+                    <button type="button"
+                            onclick="const a=window.civikaApp; const id=(a && Object.keys(a.stepsState).find(k=>!a.stepsState[k]))||'req_ruc'; if(a){a.setPillarTab(id,'pilar2'); document.getElementById('step-card-'+id)?.scrollIntoView({behavior:'smooth',block:'center'});}"
+                            class="btn-primary btn-sm">
+                      <span>Continuar al checklist</span>
+                      <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button type="button" data-stage-tab="pilar1"
+                          onclick="const a=window.civikaApp; const id=(a && Object.keys(a.stepsState).find(k=>!a.stepsState[k]))||'req_ruc'; if(a){a.setPillarTab(id,'pilar1'); document.getElementById('step-card-'+id)?.scrollIntoView({behavior:'smooth',block:'center'});}"
+                          class="stage-pill is-active">
+                    <span class="stage-num">1</span>
+                    <span>Diagnóstico</span>
+                  </button>
+                  <button type="button" data-stage-tab="pilar2"
+                          onclick="const a=window.civikaApp; const id=(a && Object.keys(a.stepsState).find(k=>!a.stepsState[k]))||'req_ruc'; if(a){a.setPillarTab(id,'pilar2'); document.getElementById('step-card-'+id)?.scrollIntoView({behavior:'smooth',block:'center'});}"
+                          class="stage-pill">
+                    <span class="stage-num">2</span>
+                    <span>Checklist</span>
+                  </button>
+                  <button type="button" data-stage-tab="pilar3"
+                          onclick="const a=window.civikaApp; const id=(a && Object.keys(a.stepsState).find(k=>!a.stepsState[k]))||'req_ruc'; if(a){a.setPillarTab(id,'pilar3'); document.getElementById('step-card-'+id)?.scrollIntoView({behavior:'smooth',block:'center'});}"
+                          class="stage-pill">
+                    <span class="stage-num">3</span>
+                    <span>Anti-Rechazo</span>
+                  </button>
+                  <button type="button" data-stage-tab="pilar4"
+                          onclick="const a=window.civikaApp; const id=(a && Object.keys(a.stepsState).find(k=>!a.stepsState[k]))||'req_ruc'; if(a){a.setPillarTab(id,'pilar4'); document.getElementById('step-card-'+id)?.scrollIntoView({behavior:'smooth',block:'center'});}"
+                          class="stage-pill">
+                    <span class="stage-num">4</span>
+                    <span>Plan B</span>
+                  </button>
+                </div>
+
+                <!-- Controles globales de Audio Guía -->
+                <div id="audioGuideGlobalControls" class="audio-controls-bar" role="region" aria-label="Controles de audio guía">
+                  <span class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                    <i data-lucide="volume-2" class="w-4 h-4 text-blue-600"></i>
+                    <span>Audio Guía:</span>
+                  </span>
+                  <button type="button" class="btn-secondary btn-sm"
+                          onclick="window.civikaApp && civikaApp.speakBusinessGuide(civikaApp.selectedBusinessId, this)">
+                    <i data-lucide="play" class="w-3.5 h-3.5"></i> Reproducir
+                  </button>
+                  <button type="button" class="btn-ghost btn-sm" onclick="window.civikaAudio && civikaAudio.pause()">
+                    <i data-lucide="pause" class="w-3.5 h-3.5"></i> Pausar
+                  </button>
+                  <button type="button" class="btn-ghost btn-sm" onclick="window.civikaAudio && civikaAudio.resume()">
+                    <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Reanudar
+                  </button>
+                  <button type="button" class="btn-ghost btn-sm" onclick="window.civikaAudio && civikaAudio.stop()">
+                    <i data-lucide="square" class="w-3.5 h-3.5"></i> Detener
+                  </button>
+                </div>
+              </div>
+
               <div id="unifiedStepsContainer" class="space-y-4"></div>
+
+              <!-- Envío ciudadano a Pre-Validación Remota bajo Convenio GAD -->
+              <div id="prevalidationCitizenBox" class="mt-4">
+                <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
+                  <p class="eyebrow">Convenio de Pre-Validación Remota · GAD Riobamba</p>
+                  <p class="text-xs text-slate-600">Completa tu checklist para habilitar el envío de resumen no sensible (Pendiente / Visto Bueno / Observado).</p>
+                  <button type="button" class="btn-primary btn-sm" disabled>
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar resumen a Pre-Validación Remota (Convenio GAD)
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div id="preWindowAuditorSection"></div>
@@ -502,10 +581,13 @@
       <!-- MODO VENTANILLA (FUNCIONARIO)                              -->
       <!-- ========================================================== -->
       <section id="screen-officer" class="app-screen space-y-6 hidden animate-fade-in">
+        <!-- Puerta de acceso con PIN 1110 (controlada por civikaApp.renderOfficerGateAndInbox) -->
+        <div id="officerPinGate"></div>
+
         <header class="screen-header">
-          <p class="eyebrow">Funcionario GAD Riobamba</p>
-          <h2 class="screen-title">Modo Ventanilla</h2>
-          <p class="screen-desc">Escanea el Pasaporte QR del ciudadano para ver qué trámites declara listos y qué documentos originales revisar. Todo se procesa en este equipo.</p>
+          <p class="eyebrow">Funcionario GAD Riobamba · Rol Administrativo</p>
+          <h2 class="screen-title">Modo Ventanilla y Pre-Validación Remota</h2>
+          <p class="screen-desc">Escanea el Pasaporte QR del ciudadano o revisa la bandeja de expedientes enviados bajo convenio para otorgar Visto Bueno o devolver con observaciones.</p>
         </header>
 
         <div class="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
@@ -553,6 +635,14 @@
             </div>
           </div>
         </div>
+
+        <!-- Bandeja remota de expedientes bajo convenio (Otorgar Visto Bueno / Devolver con Observación) -->
+        <div id="officerPrevalidationInbox" class="mt-4"></div>
+
+        <p class="fine-print">
+          <i data-lucide="shield-check" class="w-4 h-4 shrink-0"></i>
+          <span>Triaje técnico bajo convenio interinstitucional: esta vista procesa únicamente metadatos no sensibles (ID local, giro, parroquia y conteo de checklist) en cumplimiento de la Ley Orgánica de Protección de Datos Personales.</span>
+        </p>
       </section>
 
     </main>
@@ -581,6 +671,11 @@
     <i data-lucide="sparkles" class="w-5 h-5"></i>
     <span>Copiloto IA</span>
   </button>
+
+  <!-- ============================================================ -->
+  <!-- VENTANA: AVISO PREVIO ANTES DE ABRIR DOCUMENTO / PORTAL      -->
+  <!-- ============================================================ -->
+  <div id="civikaPrepNoticeModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Preparación antes de abrir documento oficial"></div>
 
   <!-- ============================================================ -->
   <!-- VENTANA: DETALLE DEL TRÁMITE Y DOCUMENTO DE REFERENCIA       -->
