@@ -3,7 +3,7 @@
  *
  * - Todas las oficinas a la vez, con colores por entidad y filtros.
  * - "Mi ubicación": distancia a cada oficina y la más cercana primero.
- * - Mapas base: Calles (OpenStreetMap), Claro (CARTO) y Satélite (Esri).
+ * - Mapas base sin clave: Claro (OSM con filtro neutro), Calles (OpenStreetMap) y Satélite (Esri).
  * - Capas propias desde QGIS / OSGeo4W: se listan en web/data/capas/capas.json
  *   y se cargan como GeoJSON (ver GUIA_MAPAS.md).
  *
@@ -12,6 +12,15 @@
 (function () {
   "use strict";
 
+  const svg = (d) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const ICONS = {
+    expand: svg('<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>'),
+    collapse: svg('<path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/>'),
+    home: svg('<path d="M3 7V3h4"/><path d="M17 3h4v4"/><path d="M21 17v4h-4"/><path d="M7 21H3v-4"/><circle cx="12" cy="12" r="3"/>'),
+    pin: svg('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>'),
+    clock: svg('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
+    route: svg('<path d="M3 11l19-9-9 19-2-8-8-2z"/>')
+  };
   const COLORS = { red: "#DC2626", indigo: "#4F46E5", emerald: "#059669", sky: "#0284C7", amber: "#D97706", blue: "#1D4ED8" };
   const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const LETTERS = { Municipio: "M", SRI: "S", Bomberos: "B", ARCSA: "A", Artesanos: "J", IESS: "I" };
@@ -52,15 +61,17 @@
       this.map.attributionControl.setPrefix(false);
 
       const tile = (url, o) => L.tileLayer(url, Object.assign({ keepBuffer: 4, updateWhenIdle: false }, o));
+      // Mapas base gratuitos SIN clave (CARTO ahora exige API key y mostraba "API KEY REQUIRED").
+      // "Claro" usa las mismas teselas de OpenStreetMap con un filtro neutro para que los pines resalten.
       const base = {
-        "Mapa (CARTO)": tile("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-          maxZoom: 20, maxNativeZoom: 20, subdomains: "abcd", attribution: "© OpenStreetMap · © CARTO"
+        "Claro": tile("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 20, maxNativeZoom: 19, className: "civika-tiles-light", attribution: "© colaboradores de OpenStreetMap"
         }),
-        "Calles (OpenStreetMap)": tile("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        "Calles": tile("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 20, maxNativeZoom: 19, attribution: "© colaboradores de OpenStreetMap"
         }),
-        "Satélite (Esri)": tile("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-          maxZoom: 20, maxNativeZoom: 17, attribution: "Imágenes © Esri y colaboradores"
+        "Satélite": tile("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+          maxZoom: 20, maxNativeZoom: 18, attribution: "Imágenes © Esri, Maxar, Earthstar Geographics"
         })
       };
       // En satélite se añaden nombres de calles y lugares para que se entienda de lejos y de cerca
@@ -68,21 +79,32 @@
       const roads = tile("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 16, pane: "overlayPane", opacity: 0.9 });
 
       let saved = null;
-      try { saved = localStorage.getItem("civikaMapBase"); } catch (e) { /* sin almacenamiento */ }
-      const first = base[saved] ? saved : "Mapa (CARTO)";
-      base[first].addTo(this.map);
-      if (first.startsWith("Satélite")) { roads.addTo(this.map); labels.addTo(this.map); }
+      try { saved = localStorage.getItem("civikaMapBase2"); } catch (e) { /* sin almacenamiento */ }
+      this.baseLayers = base;
+      this.currentBase = null;
       Object.values(base).forEach(l => l.on("tileerror", () => this.showOfflineNote()));
-      this.map.on("baselayerchange", (e) => {
-        try { localStorage.setItem("civikaMapBase", e.name); } catch (err) { /* nada */ }
-        if (e.name.startsWith("Satélite")) { roads.addTo(this.map); labels.addTo(this.map); }
+      this.setBase = (name) => {
+        if (!base[name] || name === this.currentBase) return;
+        if (this.currentBase) this.map.removeLayer(base[this.currentBase]);
+        base[name].addTo(this.map);
+        const sat = name === "Satélite";
+        if (sat) { roads.addTo(this.map); labels.addTo(this.map); }
         else { this.map.removeLayer(roads); this.map.removeLayer(labels); }
-        this.map.getContainer().classList.toggle("on-satellite", e.name.startsWith("Satélite"));
-      });
-      if (first.startsWith("Satélite")) this.map.getContainer().classList.add("on-satellite");
+        this.map.getContainer().classList.toggle("on-satellite", sat);
+        this.currentBase = name;
+        try { localStorage.setItem("civikaMapBase2", name); } catch (err) { /* nada */ }
+        document.querySelectorAll(".civika-basemap button").forEach(btn => {
+          const on = btn.dataset.base === name;
+          btn.classList.toggle("is-on", on);
+          btn.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+      };
+      this.addBaseSwitcher();
+      this.setBase(base[saved] ? saved : "Claro");
 
-      this.layerControl = L.control.layers(base, {}, { position: "topright", collapsed: true }).addTo(this.map);
-      L.control.scale({ imperial: false, position: "bottomleft" }).addTo(this.map);
+      // Control de capas solo para capas propias (QGIS); se muestra cuando exista alguna
+      this.layerControl = L.control.layers(null, {}, { position: "topright", collapsed: true });
+      L.control.scale({ imperial: false, position: "bottomleft", maxWidth: 110 }).addTo(this.map);
       this.addLegend();
       this.addFullscreenControl();
 
@@ -111,12 +133,12 @@
         const letter = LETTERS[inst.categoria] || (inst.categoria || "?").charAt(0).toUpperCase();
         const icon = L.divIcon({
           className: "civika-pin-wrap",
-          html: `<span class="civika-pin-box"><span class="civika-pin" style="--pin:${color}"><span>${esc(letter)}</span></span></span>`,
+          html: `<span class="civika-pin-box" style="--pin:${color}"><span class="civika-pin"><span>${esc(letter)}</span></span><span class="civika-pin-shadow"></span></span>`,
           iconSize: [34, 42], iconAnchor: [17, 40], popupAnchor: [0, -36], tooltipAnchor: [18, -20]
         });
         const m = L.marker(displayPos(inst), { icon, title: inst.nombre, riseOnHover: true, keyboard: true, alt: inst.nombre });
-        m.bindTooltip(esc(shortName(inst)), { permanent: true, direction: "right", className: "civika-label", opacity: 1 });
-        m.bindPopup(() => this.popupHtml(inst), { maxWidth: 300, autoPanPadding: [30, 30] });
+        m.bindTooltip(`<i style="background:${color}"></i>${esc(shortName(inst))}`, { permanent: true, direction: "right", className: "civika-label", opacity: 1 });
+        m.bindPopup(() => this.popupHtml(inst), { maxWidth: 290, minWidth: 230, autoPanPaddingTopLeft: [56, 64], autoPanPaddingBottomRight: [24, 24], className: "civika-popup" });
         m.on("click", () => { if (typeof window.selectInstitutionMap === "function") window.selectInstitutionMap(inst.id, { fromMap: true }); });
         this.markers[inst.id] = m;
       });
@@ -125,15 +147,47 @@
       this.loadCustomLayers();
     },
 
+    addBaseSwitcher() {
+      const L = window.L, self = this;
+      const ctl = L.control({ position: "topright" });
+      ctl.onAdd = () => {
+        const div = L.DomUtil.create("div", "civika-basemap");
+        div.setAttribute("role", "group");
+        div.setAttribute("aria-label", "Tipo de mapa");
+        div.innerHTML = ["Claro", "Calles", "Satélite"]
+          .map(n => `<button type="button" data-base="${n}" aria-pressed="false">${n}</button>`).join("");
+        div.querySelectorAll("button").forEach(btn => {
+          L.DomEvent.on(btn, "click", (e) => { L.DomEvent.stop(e); self.setBase(btn.dataset.base); });
+        });
+        L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
+        return div;
+      };
+      ctl.addTo(this.map);
+    },
+
     addLegend() {
       const L = window.L;
       const legend = L.control({ position: "bottomright" });
       legend.onAdd = () => {
         const div = L.DomUtil.create("div", "civika-legend");
         const used = {};
-        insts().forEach(i => { used[i.categoria] = COLORS[i.color]; });
-        div.innerHTML = Object.keys(used).map(c => `<span><i style="background:${used[c]}"></i>${esc(c)}</span>`).join("");
+        insts().forEach(i => { if (!used[i.categoria]) used[i.categoria] = COLORS[i.color] || COLORS.blue; });
+        const items = Object.keys(used).map(c => {
+          const letter = LETTERS[c] || c.charAt(0).toUpperCase();
+          return `<li><span class="civika-legend-dot" style="--pin:${used[c]}">${esc(letter)}</span>${esc(c)}</li>`;
+        }).join("");
+        div.innerHTML = `
+          <button type="button" class="civika-legend-toggle" aria-expanded="false">Leyenda</button>
+          <ul class="civika-legend-list">${items}</ul>`;
+        const btn = div.querySelector(".civika-legend-toggle");
+        L.DomEvent.on(btn, "click", (e) => {
+          L.DomEvent.stop(e);
+          const open = div.classList.toggle("open");
+          btn.setAttribute("aria-expanded", open ? "true" : "false");
+        });
         L.DomEvent.disableClickPropagation(div);
+        L.DomEvent.disableScrollPropagation(div);
         return div;
       };
       legend.addTo(this.map);
@@ -143,11 +197,15 @@
       const L = window.L, self = this;
       const ctl = L.control({ position: "topleft" });
       ctl.onAdd = () => {
-        const bar = L.DomUtil.create("div", "leaflet-bar");
-        const a = L.DomUtil.create("a", "civika-fs-btn", bar);
-        a.href = "#"; a.title = "Pantalla completa"; a.setAttribute("role", "button"); a.setAttribute("aria-label", "Mapa en pantalla completa");
-        a.innerHTML = "⛶";
-        L.DomEvent.on(a, "click", (e) => { L.DomEvent.preventDefault(e); L.DomEvent.stopPropagation(e); self.toggleFullscreen(); });
+        const bar = L.DomUtil.create("div", "leaflet-bar civika-extra-bar");
+        const fs = L.DomUtil.create("a", "civika-fs-btn", bar);
+        fs.href = "#"; fs.title = "Pantalla completa"; fs.setAttribute("role", "button"); fs.setAttribute("aria-label", "Mapa en pantalla completa");
+        fs.innerHTML = ICONS.expand;
+        const home = L.DomUtil.create("a", "civika-home-btn", bar);
+        home.href = "#"; home.title = "Ver todas las oficinas"; home.setAttribute("role", "button"); home.setAttribute("aria-label", "Ver todas las oficinas");
+        home.innerHTML = ICONS.home;
+        L.DomEvent.on(fs, "click", (e) => { L.DomEvent.preventDefault(e); L.DomEvent.stopPropagation(e); self.toggleFullscreen(); });
+        L.DomEvent.on(home, "click", (e) => { L.DomEvent.preventDefault(e); L.DomEvent.stopPropagation(e); self.fitVisible(); });
         L.DomEvent.disableClickPropagation(bar);
         return bar;
       };
@@ -161,22 +219,26 @@
       const on = f.classList.toggle("map-fullscreen");
       document.body.classList.toggle("map-is-fullscreen", on);
       const a = f.querySelector(".civika-fs-btn");
-      if (a) { a.innerHTML = on ? "✕" : "⛶"; a.title = on ? "Salir de pantalla completa (Esc)" : "Pantalla completa"; }
+      if (a) { a.innerHTML = on ? ICONS.collapse : ICONS.expand; a.title = on ? "Salir de pantalla completa (Esc)" : "Pantalla completa"; }
       setTimeout(() => { this.map.invalidateSize(); this.fitVisible(); }, 120);
     },
 
     popupHtml(inst) {
-      const dist = this.userPos && inst.coordenadas ? `<p class="civika-pop-dist">A ${formatKm(haversineKm(this.userPos, inst.coordenadas))} de ti</p>` : "";
-      const approx = inst.ubicacionAproximada ? `<p class="civika-pop-warn">Ubicación aproximada: confirma la dirección.</p>` : "";
+      const color = COLORS[inst.color] || COLORS.blue;
+      const km = this.distanceTo(inst);
+      const dist = km != null ? `<span class="civika-pop-dist">${formatKm(km)} de ti</span>` : "";
+      const approx = inst.ubicacionAproximada ? `<p class="civika-pop-warn">Ubicación aproximada: confirma la dirección antes de ir.</p>` : "";
       return `
-        <div class="civika-pop">
-          <p class="civika-pop-cat">${esc(inst.categoria)}</p>
+        <div class="civika-pop" style="--pin:${color}">
+          <div class="civika-pop-head">
+            <span class="civika-pop-cat">${esc(inst.categoria)}</span>${dist}
+          </div>
           <p class="civika-pop-title">${esc(inst.nombre)}</p>
-          <p>${esc(inst.direccion)}</p>
-          <p class="civika-pop-muted">${esc(inst.horario)} · ${esc(inst.dias)}</p>
-          ${dist}${approx}
+          <p class="civika-pop-row">${ICONS.pin}<span>${esc(inst.direccion)}</span></p>
+          <p class="civika-pop-row civika-pop-muted">${ICONS.clock}<span>${esc(inst.horario)} · ${esc(inst.dias)}</span></p>
+          ${approx}
           <div class="civika-pop-actions">
-            <a href="${esc(this.directionsUrl(inst))}" target="_blank" rel="noopener noreferrer">Cómo llegar</a>
+            <a class="is-primary" href="${esc(this.directionsUrl(inst))}" target="_blank" rel="noopener noreferrer">${ICONS.route}<span>Cómo llegar</span></a>
             <a href="https://www.openstreetmap.org/?mlat=${inst.coordenadas.lat}&mlon=${inst.coordenadas.lng}#map=18/${inst.coordenadas.lat}/${inst.coordenadas.lng}" target="_blank" rel="noopener noreferrer">Ver en OSM</a>
           </div>
         </div>`;
@@ -255,8 +317,11 @@
       if (this.userLayer) this.map.removeLayer(this.userLayer);
       const ll = [this.userPos.lat, this.userPos.lng];
       this.userLayer = L.layerGroup([
-        L.circle(ll, { radius: Math.min(this.userPos.acc || 50, 400), color: "#1D4ED8", weight: 1, fillOpacity: 0.08 }),
-        L.circleMarker(ll, { radius: 7, color: "#fff", weight: 3, fillColor: "#1D4ED8", fillOpacity: 1 }).bindTooltip("Tú estás aquí")
+        L.circle(ll, { radius: Math.min(this.userPos.acc || 50, 400), color: "#2563EB", weight: 1, opacity: 0.5, fillColor: "#3B82F6", fillOpacity: 0.1, interactive: false }),
+        L.marker(ll, {
+          icon: L.divIcon({ className: "civika-me-wrap", html: '<span class="civika-me"><span class="civika-me-pulse"></span><span class="civika-me-dot"></span></span>', iconSize: [24, 24], iconAnchor: [12, 12] }),
+          zIndexOffset: 2000, keyboard: false, title: "Tu ubicación"
+        }).bindTooltip("Tú estás aquí", { direction: "top", offset: [0, -10] })
       ]).addTo(this.map);
       this.fitVisible();
     },
@@ -303,6 +368,7 @@
               lyr.bindPopup(`<div class="civika-pop"><p class="civika-pop-cat">${esc(capa.nombre)}</p>${rows ? `<table class="civika-pop-table">${rows}</table>` : ""}</div>`);
             }
           });
+          if (!this._layerCtlAdded) { this.layerControl.addTo(this.map); this._layerCtlAdded = true; }
           this.layerControl.addOverlay(layer, esc(capa.nombre));
           if (capa.visible) layer.addTo(this.map);
         })
