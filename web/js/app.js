@@ -3101,6 +3101,10 @@ class CivikaApp {
       checklistConteo: `${sum.doneChecks}/${sum.totalChecks}`,
       pasosConteo: `${sum.doneSteps}/${sum.applicableSteps.length}`,
       alertasSuperadas: `${sum.alertasSuperadas}/${sum.applicableSteps.length}`,
+      pasosEstado: Object.fromEntries(CIVIKA_KNOWLEDGE_BASE.pasosSecuenciales.map(p => [
+        p.id,
+        sum.applicableSteps.some(a => a.id === p.id) ? (this.stepsState[p.id] ? "completado" : "pendiente") : "no_aplica"
+      ])),
       estado: "Pendiente"
     });
     if (typeof window.civikaToast === "function") {
@@ -3174,6 +3178,7 @@ class CivikaApp {
         </div>
       `;
       if (window.lucide) window.lucide.createIcons();
+      if (window.civikaBackoffice) window.civikaBackoffice.mount(screen, false);
       return;
     }
 
@@ -3261,6 +3266,7 @@ class CivikaApp {
       </div>
     `;
     if (window.lucide) window.lucide.createIcons();
+    if (window.civikaBackoffice) await window.civikaBackoffice.mount(screen, true);
   }
 
   unlockOfficerPin() {

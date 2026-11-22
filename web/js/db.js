@@ -314,6 +314,9 @@ class CivikaRepository {
       checklistConteo: String(metadata?.checklistConteo || "0/0"),
       pasosConteo: String(metadata?.pasosConteo || ""),
       alertasSuperadas: String(metadata?.alertasSuperadas || "0/0"),
+      // Solo estados por paso ("completado" | "pendiente" | "no_aplica"), sin datos personales
+      pasosEstado: Object.fromEntries(Object.entries(metadata?.pasosEstado || {})
+        .filter(([k, v]) => /^req_[a-z_]+$/.test(k) && ["completado", "pendiente", "no_aplica"].includes(v))),
       estado: "Pendiente",
       motivo: "",
       codigoPase: "",
