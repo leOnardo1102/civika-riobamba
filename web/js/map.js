@@ -19,7 +19,8 @@
     home: svg('<path d="M3 7V3h4"/><path d="M17 3h4v4"/><path d="M21 17v4h-4"/><path d="M7 21H3v-4"/><circle cx="12" cy="12" r="3"/>'),
     pin: svg('<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>'),
     clock: svg('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
-    route: svg('<path d="M3 11l19-9-9 19-2-8-8-2z"/>')
+    route: svg('<path d="M3 11l19-9-9 19-2-8-8-2z"/>'),
+    tag: svg('<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>')
   };
   const COLORS = { red: "#DC2626", indigo: "#4F46E5", emerald: "#059669", sky: "#0284C7", amber: "#D97706", blue: "#1D4ED8" };
   const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -71,12 +72,31 @@
           maxZoom: 20, maxNativeZoom: 19, attribution: "© colaboradores de OpenStreetMap"
         }),
         "Satélite": tile("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-          maxZoom: 20, maxNativeZoom: 18, attribution: "Imágenes © Esri, Maxar, Earthstar Geographics"
+          // En Riobamba la imagen nativa llega hasta el nivel 18; el 19 se amplía sin perder demasiada nitidez
+          maxZoom: 19, maxNativeZoom: 18, className: "civika-tiles-sat", attribution: "Imágenes © Esri, Maxar, Earthstar Geographics"
         })
       };
-      // En satélite se añaden nombres de calles y lugares para que se entienda de lejos y de cerca
-      const labels = tile("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 16, pane: "overlayPane" });
-      const roads = tile("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 20, maxNativeZoom: 16, pane: "overlayPane", opacity: 0.9 });
+      // Capas de referencia para satélite (nativas hasta el nivel 18 → nombres de calles nítidos y a escala)
+      const refPane = this.map.createPane("civikaRefPane");
+      refPane.style.zIndex = 350;
+      refPane.style.pointerEvents = "none";
+      const labels = tile("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, maxNativeZoom: 18, pane: "civikaRefPane", className: "civika-tiles-ref" });
+      const roads = tile("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, maxNativeZoom: 18, pane: "civikaRefPane", className: "civika-tiles-ref", opacity: 0.92 });
+      let satLabels = true;
+      try { satLabels = localStorage.getItem("civikaSatLabels") !== "0"; } catch (e) { /* nada */ }
+      const syncRefLayers = () => {
+        const show = this.currentBase === "Satélite" && satLabels;
+        [roads, labels].forEach(l => { if (show && !this.map.hasLayer(l)) l.addTo(this.map); if (!show && this.map.hasLayer(l)) this.map.removeLayer(l); });
+        document.querySelectorAll(".civika-sat-labels").forEach(btn => {
+          btn.classList.toggle("is-on", satLabels);
+          btn.setAttribute("aria-pressed", satLabels ? "true" : "false");
+        });
+      };
+      this.toggleSatLabels = () => {
+        satLabels = !satLabels;
+        try { localStorage.setItem("civikaSatLabels", satLabels ? "1" : "0"); } catch (e) { /* nada */ }
+        syncRefLayers();
+      };
 
       let saved = null;
       try { saved = localStorage.getItem("civikaMapBase2"); } catch (e) { /* sin almacenamiento */ }
@@ -86,18 +106,21 @@
       this.setBase = (name) => {
         if (!base[name] || name === this.currentBase) return;
         if (this.currentBase) this.map.removeLayer(base[this.currentBase]);
-        base[name].addTo(this.map);
         const sat = name === "Satélite";
-        if (sat) { roads.addTo(this.map); labels.addTo(this.map); }
-        else { this.map.removeLayer(roads); this.map.removeLayer(labels); }
+        // El satélite tiene nitidez real hasta el nivel 18: se limita el acercamiento a 19
+        this.map.setMaxZoom(sat ? 19 : 20);
+        base[name].addTo(this.map);
         this.map.getContainer().classList.toggle("on-satellite", sat);
+        const frame = this.map.getContainer().closest(".map-frame-live");
+        if (frame) frame.classList.toggle("is-satellite", sat);
         this.currentBase = name;
         try { localStorage.setItem("civikaMapBase2", name); } catch (err) { /* nada */ }
-        document.querySelectorAll(".civika-basemap button").forEach(btn => {
+        document.querySelectorAll(".civika-basemap button[data-base]").forEach(btn => {
           const on = btn.dataset.base === name;
           btn.classList.toggle("is-on", on);
           btn.setAttribute("aria-pressed", on ? "true" : "false");
         });
+        syncRefLayers();
       };
       this.addBaseSwitcher();
       this.setBase(base[saved] ? saved : "Claro");
@@ -105,6 +128,7 @@
       // Control de capas solo para capas propias (QGIS); se muestra cuando exista alguna
       this.layerControl = L.control.layers(null, {}, { position: "topright", collapsed: true });
       L.control.scale({ imperial: false, position: "bottomleft", maxWidth: 110 }).addTo(this.map);
+      this.addCoordsHud();
       this.addLegend();
       this.addFullscreenControl();
 
@@ -155,12 +179,37 @@
         div.setAttribute("role", "group");
         div.setAttribute("aria-label", "Tipo de mapa");
         div.innerHTML = ["Claro", "Calles", "Satélite"]
-          .map(n => `<button type="button" data-base="${n}" aria-pressed="false">${n}</button>`).join("");
-        div.querySelectorAll("button").forEach(btn => {
+          .map(n => `<button type="button" data-base="${n}" aria-pressed="false">${n}</button>`).join("")
+          + `<span class="civika-sat-only civika-basemap-sep" aria-hidden="true"></span>`
+          + `<button type="button" class="civika-sat-only civika-sat-labels" aria-pressed="true" title="Mostrar u ocultar nombres de calles">${ICONS.tag}<span>Nombres</span></button>`;
+        div.querySelectorAll("button[data-base]").forEach(btn => {
           L.DomEvent.on(btn, "click", (e) => { L.DomEvent.stop(e); self.setBase(btn.dataset.base); });
         });
+        L.DomEvent.on(div.querySelector(".civika-sat-labels"), "click", (e) => { L.DomEvent.stop(e); self.toggleSatLabels(); });
         L.DomEvent.disableClickPropagation(div);
         L.DomEvent.disableScrollPropagation(div);
+        return div;
+      };
+      ctl.addTo(this.map);
+    },
+
+    /** Lectura de coordenadas y zoom, como en un visor SIG */
+    addCoordsHud() {
+      const L = window.L;
+      const ctl = L.control({ position: "bottomleft" });
+      ctl.onAdd = () => {
+        const div = L.DomUtil.create("div", "civika-hud");
+        div.setAttribute("aria-hidden", "true");
+        let queued = false;
+        const fmt = (v, pos, neg) => `${Math.abs(v).toFixed(4)}° ${v < 0 ? neg : pos}`;
+        const update = () => {
+          queued = false;
+          if (!this.map || !this.map._loaded) return; // aún sin centro: se actualiza al cargar
+          const c = this.map.getCenter();
+          div.innerHTML = `<span>${fmt(c.lat, "N", "S")}</span><span>${fmt(c.lng, "E", "O")}</span><b>z${(Math.round(this.map.getZoom() * 10) / 10).toString()}</b>`;
+        };
+        this.map.on("load move zoom viewreset", () => { if (!queued) { queued = true; requestAnimationFrame(update); } });
+        update();
         return div;
       };
       ctl.addTo(this.map);
