@@ -265,7 +265,17 @@
     toggleFullscreen() {
       const f = document.querySelector(".map-frame-live");
       if (!f) return;
-      const on = f.classList.toggle("map-fullscreen");
+      const on = !f.classList.contains("map-fullscreen");
+      // Se mueve el mapa al <body> mientras está en pantalla completa: si un contenedor tiene
+      // transform/sticky, "position: fixed" quedaba atrapado y no cubría la barra lateral.
+      if (on) {
+        this._fsHome = { parent: f.parentNode, next: f.nextSibling };
+        document.body.appendChild(f);
+      } else if (this._fsHome && this._fsHome.parent) {
+        this._fsHome.parent.insertBefore(f, this._fsHome.next && this._fsHome.next.parentNode === this._fsHome.parent ? this._fsHome.next : null);
+        this._fsHome = null;
+      }
+      f.classList.toggle("map-fullscreen", on);
       document.body.classList.toggle("map-is-fullscreen", on);
       const a = f.querySelector(".civika-fs-btn");
       if (a) { a.innerHTML = on ? ICONS.collapse : ICONS.expand; a.title = on ? "Salir de pantalla completa (Esc)" : "Pantalla completa"; }
