@@ -71,24 +71,24 @@
           <i data-lucide="home"></i><span>Inicio</span>
         </button>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-unified-forms">
-          <i data-lucide="folder-check"></i><span>Trámites y formularios</span>
+          <i data-lucide="folder-check"></i><span class="side-nav-label">Abrir mi negocio<small>Tu ruta de permisos, paso a paso</small></span>
         </button>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-renewals">
-          <i data-lucide="calendar-clock"></i><span>Renovaciones</span>
+          <i data-lucide="calendar-clock"></i><span class="side-nav-label">Mantener mi negocio<small>Vencimientos y renovaciones</small></span>
           <span class="renewals-nav-badge side-badge hidden"></span>
         </button>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-institutions">
-          <i data-lucide="map-pin"></i><span>Oficinas y mapa</span>
+          <i data-lucide="map-pin"></i><span class="side-nav-label">Oficinas y mapa<small>Dónde queda cada institución</small></span>
         </button>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-assistant">
-          <i data-lucide="sparkles"></i><span>Copiloto IA</span>
+          <i data-lucide="sparkles"></i><span class="side-nav-label">Copiloto IA<small>Pregunta lo que no entiendas</small></span>
         </button>
       </nav>
 
       <nav class="side-group" aria-label="Funcionario">
         <p class="side-section-title">Funcionario GAD</p>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-officer">
-          <i data-lucide="scan-line"></i><span>Modo Ventanilla QR</span>
+          <i data-lucide="scan-line"></i><span class="side-nav-label">Soy funcionario<small>Ventanilla QR y expedientes</small></span>
         </button>
       </nav>
 
@@ -98,6 +98,14 @@
           <i data-lucide="eye"></i>
           <span id="easyReadToggleLabel">Lectura Fácil</span>
           <span class="pref-switch" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="side-pref-btn" onclick="window.civikaOnboarding && civikaOnboarding.openGuide()">
+          <i data-lucide="circle-help"></i>
+          <span>Cómo funciona</span>
+        </button>
+        <button type="button" class="side-pref-btn" onclick="window.civikaOnboarding && civikaOnboarding.open()">
+          <i data-lucide="door-open"></i>
+          <span>Ver bienvenida</span>
         </button>
         <button id="liveMetricsHeaderBtn" type="button" class="side-pref-btn">
           <i data-lucide="bar-chart-3"></i>
@@ -156,6 +164,9 @@
           </div>
         </div>
 
+        <button type="button" class="icon-btn" onclick="window.civikaOnboarding && civikaOnboarding.openGuide()" aria-label="Cómo funciona Cívika" title="Cómo funciona">
+          <i data-lucide="circle-help" class="w-5 h-5"></i>
+        </button>
         <button type="button" class="icon-btn relative" onclick="civikaApp.goToScreen('screen-renewals')" aria-label="Renovaciones y vencimientos" title="Renovaciones">
           <i data-lucide="bell" class="w-5 h-5"></i>
           <span class="renewals-nav-badge topbar-badge hidden"></span>
@@ -286,7 +297,7 @@
 
         <header class="screen-header">
           <p class="eyebrow">Ruta del emprendedor · Paso 1 al 6</p>
-          <h2 class="screen-title">Trámites y formularios</h2>
+          <h2 class="screen-title">Abrir mi negocio</h2>
           <p class="screen-desc">Elige tu tipo de negocio. Verás los requisitos exactos, el orden de los trámites y, al final, tu Pasaporte QR para la ventanilla.</p>
         </header>
 
@@ -542,8 +553,8 @@
       <section id="screen-renewals" class="app-screen space-y-6 hidden animate-fade-in">
         <header class="screen-header screen-header-row">
           <div>
-            <p class="eyebrow">Todo el año</p>
-            <h2 class="screen-title">Renovaciones y vencimientos</h2>
+            <p class="eyebrow">Renovaciones y vencimientos · todo el año</p>
+            <h2 class="screen-title">Mantener mi negocio</h2>
             <p class="screen-desc">Escribe la fecha de vencimiento de cada documento. Te avisamos a los 30 y a los 7 días, y puedes llevar los avisos al calendario de tu celular.</p>
           </div>
           <div class="flex flex-wrap gap-2">
@@ -656,10 +667,10 @@
       <i data-lucide="home"></i><span>Inicio</span>
     </button>
     <button type="button" class="nav-tab-btn bottom-nav-btn" data-target-screen="screen-unified-forms">
-      <i data-lucide="folder-check"></i><span>Trámites</span>
+      <i data-lucide="folder-check"></i><span>Abrir negocio</span>
     </button>
     <button type="button" class="nav-tab-btn bottom-nav-btn relative" data-target-screen="screen-renewals">
-      <i data-lucide="calendar-clock"></i><span>Renovar</span>
+      <i data-lucide="calendar-clock"></i><span>Mantener</span>
       <span class="renewals-nav-badge bottom-badge hidden"></span>
     </button>
     <button type="button" class="bottom-nav-btn" onclick="civikaUI.openDrawer()">
@@ -747,6 +758,8 @@
   <script src="js/app.js"></script>
   <script src="js/backoffice.js"></script>
   <script src="js/citizen_tools.js"></script>
+  <script src="js/onboarding.js"></script>
+  <script src="js/route_focus.js"></script>
   <script src="js/features.js"></script>
   <script src="js/pdf.js"></script>
 </body>

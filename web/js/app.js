@@ -219,11 +219,11 @@ class CivikaApp {
     // Título de la página (laptop) y del documento
     const titles = {
       "screen-home": "Inicio",
-      "screen-unified-forms": "Trámites y formularios",
+      "screen-unified-forms": "Abrir mi negocio",
       "screen-assistant": "Copiloto IA",
-      "screen-renewals": "Renovaciones",
+      "screen-renewals": "Mantener mi negocio",
       "screen-institutions": "Oficinas y mapa",
-      "screen-officer": "Modo Ventanilla"
+      "screen-officer": "Soy funcionario · Ventanilla"
     };
     const pageTitle = document.getElementById("pageTitle");
     if (pageTitle) pageTitle.textContent = titles[screenId] || "Cívika";

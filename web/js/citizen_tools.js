@@ -510,7 +510,7 @@
                 ${nextPlan ? `<a id="agendaGoogleBtn" href="${esc(agenda.googleUrl(nextPlan, biz))}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-sm"><i data-lucide="calendar" class="w-4 h-4"></i> Siguiente paso en Google Calendar</a>` : ""}
               </div>
               <p class="text-[10px] text-slate-500">${plan.length} paso${plan.length === 1 ? "" : "s"} pendiente${plan.length === 1 ? "" : "s"}, sin fines de semana y con aviso el día anterior. El archivo .ics funciona en Google Calendar, Outlook, iPhone y Android. Son fechas para organizarte, no plazos oficiales.</p>
-            ` : `<p class="text-[11px] text-slate-600">No tienes pasos pendientes. Para los vencimientos anuales usa <button type="button" id="agendaGoRenewals" class="underline font-semibold text-blue-700 cursor-pointer">Renovaciones</button>.</p>`}
+            ` : `<p class="text-[11px] text-slate-600">No tienes pasos pendientes. Para los vencimientos anuales usa <button type="button" id="agendaGoRenewals" class="underline font-semibold text-blue-700 cursor-pointer">Mantener mi negocio</button>.</p>`}
           </div>
 
           <div class="pt-2 border-t border-slate-100 space-y-2">

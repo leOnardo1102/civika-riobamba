@@ -928,3 +928,175 @@ html.easy-read-mode select:focus-visible { box-shadow: 0 0 0 4px #F59E0B !import
   .civika-hud span + span { display: none; }
   .civika-basemap button { padding: 5px 6px; font-size: 10.5px; }
 }
+
+/* ================================================================ */
+/* Bienvenida (primera visita)                                      */
+/* ================================================================ */
+.welcome {
+  position: fixed; inset: 0; z-index: 10050; overflow-y: auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(60rem 30rem at 85% -10%, rgba(59, 110, 246, 0.35), transparent 60%),
+    radial-gradient(40rem 24rem at -10% 110%, rgba(16, 185, 129, 0.16), transparent 60%),
+    var(--navy);
+  color: #fff; opacity: 0; transition: opacity .25s ease;
+}
+.welcome.hidden { display: none; }
+.welcome.is-visible { opacity: 1; }
+body.welcome-open { overflow: hidden; }
+.welcome-inner { width: 100%; max-width: 64rem; margin: auto; }
+.welcome.is-visible .welcome-inner { animation: welcomeIn .45s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes welcomeIn { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.welcome-brand { display: flex; align-items: center; gap: .6rem; }
+.welcome-logo { width: 2.25rem; height: 2.25rem; border-radius: .6rem; background: #fff; color: var(--navy); display: grid; place-items: center; font-weight: 800; font-size: 1.15rem; }
+.welcome-brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+.welcome-brand-text b { font-size: 1rem; }
+.welcome-brand-text small { font-size: .75rem; color: #94A3B8; }
+
+.welcome-title { font-size: 1.6rem; line-height: 1.15; font-weight: 750; letter-spacing: -0.025em; margin-top: 1.1rem; max-width: 38rem; }
+.welcome-lead { font-size: .95rem; line-height: 1.55; color: #CBD5E1; margin-top: .6rem; max-width: 40rem; }
+.welcome-ask { margin-top: 1.25rem; font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #93C5FD; }
+
+.welcome-paths { display: grid; gap: .6rem; margin-top: .6rem; }
+.welcome-path {
+  display: flex; align-items: center; gap: .85rem; text-align: left; width: 100%;
+  padding: .85rem .9rem; border-radius: 14px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); color: #fff;
+  transition: background-color .15s, border-color .15s, transform .15s;
+}
+.welcome-path:hover { background: rgba(255, 255, 255, 0.11); border-color: rgba(255, 255, 255, 0.32); }
+.welcome-path:focus-visible { outline: 2px solid #93C5FD; outline-offset: 2px; }
+.welcome-path:first-child { background: #fff; color: var(--navy); border-color: #fff; }
+.welcome-path:first-child:hover { background: #EEF2FF; }
+.welcome-path-icon { flex-shrink: 0; width: 2.5rem; height: 2.5rem; border-radius: 12px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.12); }
+.welcome-path:first-child .welcome-path-icon { background: #DBEAFE; color: #1D4ED8; }
+.welcome-path-icon svg { width: 1.25rem; height: 1.25rem; }
+.welcome-path-body { display: flex; flex-direction: column; gap: .15rem; min-width: 0; flex: 1; }
+.welcome-path-title { font-weight: 700; font-size: .98rem; }
+.welcome-path-text { font-size: .8rem; line-height: 1.4; color: #CBD5E1; }
+.welcome-path:first-child .welcome-path-text { color: #475569; }
+.welcome-path-arrow { flex-shrink: 0; width: 1.1rem; height: 1.1rem; opacity: .7; }
+
+.welcome-foot { margin-top: 1.1rem; display: flex; flex-direction: column; gap: .7rem; }
+.welcome-trust { display: flex; align-items: center; gap: .45rem; font-size: .78rem; color: #A7F3D0; }
+.welcome-trust svg { width: .95rem; height: .95rem; flex-shrink: 0; }
+.welcome-links { display: flex; gap: .5rem; flex-wrap: wrap; }
+.welcome-link { display: inline-flex; align-items: center; gap: .4rem; min-height: 40px; padding: 0 .95rem; border-radius: 999px; font-size: .85rem; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,.28); background: transparent; cursor: pointer; }
+.welcome-link:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.5); }
+.welcome-link svg { width: 1rem; height: 1rem; }
+.welcome-skip { border-color: transparent; color: #CBD5E1; text-decoration: underline; text-underline-offset: 3px; }
+
+@media (min-width: 768px) {
+  .welcome { padding: 2rem; }
+  .welcome-title { font-size: 2.4rem; margin-top: 1.6rem; }
+  .welcome-lead { font-size: 1.05rem; }
+  .welcome-ask { margin-top: 2rem; }
+  .welcome-paths { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .9rem; margin-top: .8rem; }
+  .welcome-path { flex-direction: column; align-items: flex-start; padding: 1.25rem; min-height: 12.5rem; gap: .9rem; }
+  .welcome-path-title { font-size: 1.1rem; }
+  .welcome-path-text { font-size: .88rem; }
+  .welcome-path-arrow { margin-top: auto; }
+  .welcome-foot { flex-direction: row; align-items: center; justify-content: space-between; margin-top: 1.6rem; }
+}
+@media (max-height: 700px) and (max-width: 767px) {
+  .welcome-title { font-size: 1.3rem; margin-top: .6rem; }
+  .welcome-lead { font-size: .84rem; margin-top: .4rem; }
+  .welcome-ask { margin-top: .8rem; }
+  .welcome-paths { gap: .45rem; }
+  .welcome-path { padding: .6rem .75rem; }
+  .welcome-path-icon { width: 2.1rem; height: 2.1rem; }
+  .welcome-path-text { font-size: .74rem; }
+  .welcome-foot { margin-top: .7rem; gap: .5rem; }
+}
+@media (prefers-reduced-motion: reduce) { .welcome, .welcome.is-visible .welcome-inner { animation: none; transition: none; } }
+
+/* Menú lateral: nombre + para qué sirve */
+.side-nav-label { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.side-nav-label small { font-size: 0.72rem; font-weight: 400; color: var(--text-3); margin-top: 1px; }
+.side-nav-btn.is-active .side-nav-label small { color: #3B6EF6; opacity: .85; }
+.side-nav-btn:has(.side-nav-label) { min-height: 48px; }
+
+/* Guía "Cómo funciona" */
+.guide {
+  position: fixed; inset: 0; z-index: 10060; display: flex; align-items: center; justify-content: center;
+  padding: 1rem; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(3px); opacity: 0; transition: opacity .2s ease;
+}
+.guide.hidden { display: none; }
+.guide.is-visible { opacity: 1; }
+.guide-card { width: 100%; max-width: 28rem; background: var(--surface); border-radius: 20px; box-shadow: 0 24px 60px rgba(15, 23, 42, .35); padding: 1.1rem 1.25rem 1.25rem; }
+.guide.is-visible .guide-card { animation: welcomeIn .35s cubic-bezier(.2,.8,.3,1) both; }
+.guide-head { display: flex; align-items: center; justify-content: space-between; }
+.guide-eyebrow { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); }
+.guide-close { width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; color: var(--text-2); }
+.guide-close:hover { background: #F1F5F9; color: var(--text); }
+.guide-close svg { width: 18px; height: 18px; }
+.guide-step { text-align: center; padding: .75rem .25rem .25rem; min-height: 15.5rem; }
+.guide-icon { position: relative; display: inline-grid; place-items: center; width: 4.5rem; height: 4.5rem; border-radius: 22px; background: #EFF6FF; color: var(--primary); }
+.guide-icon svg { width: 2rem; height: 2rem; }
+.guide-icon b { position: absolute; top: -6px; right: -6px; width: 1.6rem; height: 1.6rem; border-radius: 999px; background: var(--navy); color: #fff; font-size: .8rem; display: grid; place-items: center; border: 2px solid #fff; }
+.guide-title { font-size: 1.3rem; font-weight: 750; letter-spacing: -0.02em; color: var(--text); margin-top: 1rem; }
+.guide-text { font-size: .95rem; line-height: 1.55; color: var(--text-2); margin-top: .5rem; }
+.guide-hint { display: inline-flex; align-items: flex-start; gap: .4rem; text-align: left; font-size: .82rem; line-height: 1.45; color: #065F46; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 12px; padding: .55rem .75rem; margin-top: .9rem; }
+.guide-hint svg { width: 1rem; height: 1rem; flex-shrink: 0; margin-top: 1px; }
+.guide-nav { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-top: 1rem; }
+.guide-dots { display: flex; gap: .4rem; }
+.guide-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--border-strong); transition: width .2s, background-color .2s; padding: 0; }
+.guide-dot.is-on { width: 22px; background: var(--primary); }
+.guide-buttons { display: flex; gap: .5rem; }
+.guide-buttons button:disabled { opacity: .4; pointer-events: none; }
+
+/* ================================================================ */
+/* Ruta "una cosa a la vez"                                          */
+/* ================================================================ */
+.route-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: .9rem 1rem; margin-bottom: .75rem; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+.route-bar-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.route-bar-eyebrow { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.route-bar-title { font-size: .92rem; color: var(--text-2); margin-top: .15rem; line-height: 1.35; }
+.route-bar-title b { color: var(--text); font-weight: 700; }
+.route-segments { list-style: none; margin: .75rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .35rem; }
+.route-seg { width: 100%; display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: 0; background: none; cursor: pointer; border-radius: 8px; }
+.route-seg:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.route-seg-bar { width: 100%; height: 6px; border-radius: 999px; background: var(--border); transition: background-color .2s; }
+.route-seg-label { font-size: .7rem; font-weight: 700; color: var(--text-3); }
+.route-seg[data-state="done"] .route-seg-bar { background: #10B981; }
+.route-seg[data-state="done"] .route-seg-label { color: #047857; }
+.route-seg[data-state="current"] .route-seg-bar { background: var(--primary); box-shadow: 0 0 0 3px #DBEAFE; }
+.route-seg[data-state="current"] .route-seg-label { color: var(--primary); }
+.route-seg[data-state="na"] .route-seg-bar { background: repeating-linear-gradient(90deg, #E2E8F0 0 6px, transparent 6px 10px); }
+.route-seg:hover .route-seg-bar { filter: brightness(.95); }
+
+.route-switch { display: inline-flex; align-items: center; gap: .45rem; font-size: .78rem; font-weight: 600; color: var(--text-2); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.route-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.route-switch-ui { position: relative; width: 34px; height: 20px; border-radius: 999px; background: #CBD5E1; transition: background-color .2s; }
+.route-switch-ui::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+.route-switch input:checked + .route-switch-ui { background: var(--primary); }
+.route-switch input:checked + .route-switch-ui::after { transform: translateX(14px); }
+.route-switch input:focus-visible + .route-switch-ui { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Botón abrir/cerrar en cada paso */
+.route-toggle { display: inline-flex; align-items: center; gap: .2rem; height: 28px; padding: 0 .55rem; border-radius: 10px; font-size: 10px; font-weight: 700; color: var(--text-2); background: #F8FAFC; border: 1px solid var(--border); cursor: pointer; transition: background-color .15s; }
+.route-toggle:hover { background: #F1F5F9; color: var(--text); }
+.route-toggle svg { width: 14px; height: 14px; transition: transform .2s; }
+.route-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+/* Chip de estado junto al nombre del paso */
+.route-chip { display: none; margin-top: .3rem; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; width: fit-content; }
+.route-chip[data-state="current"] { display: inline-block; background: #DBEAFE; color: #1D4ED8; }
+.route-chip[data-state="na"] { display: inline-block; background: #F1F5F9; color: #64748B; }
+
+/* Paso cerrado: solo la fila del encabezado */
+.route-collapsed > :not(:first-child) { display: none !important; }
+.route-collapsed { padding-top: .75rem !important; padding-bottom: .75rem !important; box-shadow: none !important; }
+.route-collapsed[data-route-state="pending"] { background: #FBFCFE; }
+.route-collapsed[data-route-state="pending"] h3 { color: #334155; }
+.route-collapsed[data-route-state="na"] { opacity: .75; }
+[id^="step-card-"] { scroll-margin-top: 5.5rem; }
+[id^="step-card-"][data-route-state="current"] { border-color: #93C5FD !important; box-shadow: 0 0 0 3px #EFF6FF, 0 4px 14px -4px rgba(29,78,216,.18) !important; }
+
+@media (max-width: 420px) {
+  .route-bar { padding: .8rem .85rem; }
+  .route-bar-title { font-size: .86rem; }
+  .route-toggle-label { display: none; }
+}
