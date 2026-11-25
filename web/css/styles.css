@@ -1159,3 +1159,82 @@ body[data-role="funcionario"] [data-role-view="ciudadano"] { display: none !impo
 @media (max-width: 400px) { .guide-nav { flex-wrap: wrap; } .guide-welcome-link { order: 3; margin: 0; width: 100%; text-align: left; } }
 #screen-unified-forms.flow-picked.flow-changing [data-flow="picker"] { display: block; }
 .flow-keep { font-weight: 650; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; background: none; padding: 0; cursor: pointer; }
+
+/* ---- Bienvenida v2: dos caminos protagonistas + acceso de funcionario ---- */
+.welcome-top { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.welcome-badge {
+  display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .75rem; border-radius: 999px;
+  font-size: .72rem; font-weight: 600; color: #CBD5E1; letter-spacing: .01em;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14);
+}
+.welcome-badge svg { width: .9rem; height: .9rem; color: #6EE7B7; flex-shrink: 0; }
+
+.welcome-path { position: relative; transition: transform .2s cubic-bezier(.2,.8,.3,1), box-shadow .2s, border-color .2s, background-color .2s; }
+.welcome-path-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-shrink: 0; }
+.welcome-path-badge { font-size: .68rem; font-weight: 700; letter-spacing: .02em; padding: .2rem .55rem; border-radius: 999px; background: #DBEAFE; color: #1D4ED8; white-space: nowrap; }
+.welcome-path-arrow { flex-shrink: 0; font-size: 1.15rem; line-height: 1; opacity: .75; transition: transform .2s ease, opacity .2s; }
+.welcome-path:hover, .welcome-path:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(147,197,253,.7);
+  box-shadow: 0 0 0 1px rgba(147,197,253,.45), 0 14px 32px -12px rgba(59,130,246,.55);
+}
+.welcome-path:first-child:hover, .welcome-path:first-child:focus-visible { box-shadow: 0 0 0 3px rgba(147,197,253,.55), 0 16px 36px -12px rgba(59,130,246,.6); }
+.welcome-path:hover .welcome-path-arrow, .welcome-path:focus-visible .welcome-path-arrow { transform: translateX(4px); opacity: 1; }
+
+/* Celular: el ícono y la etiqueta van en la misma fila del título */
+@media (max-width: 767px) {
+  .welcome-path { align-items: center; }
+  .welcome-path-head { flex-direction: column; align-items: flex-start; }
+  .welcome-path-badge { display: none; }
+  .welcome-path:first-child .welcome-path-title::after { content: "Ruta guiada"; margin-left: .45rem; font-size: .62rem; font-weight: 700; padding: .12rem .45rem; border-radius: 999px; background: #DBEAFE; color: #1D4ED8; vertical-align: 2px; }
+}
+
+/* Acceso secundario del funcionario */
+.welcome-officer {
+  width: 100%; display: flex; align-items: center; gap: .8rem; text-align: left; cursor: pointer; margin-top: .6rem;
+  padding: .7rem .9rem; border-radius: 14px; color: #E2E8F0;
+  background: rgba(15, 23, 42, .35); border: 1px dashed rgba(255,255,255,.22);
+  transition: transform .2s cubic-bezier(.2,.8,.3,1), border-color .2s, background-color .2s, box-shadow .2s;
+}
+.welcome-officer:hover, .welcome-officer:focus-visible {
+  transform: translateY(-3px); border-style: solid; border-color: rgba(147,197,253,.6); background: rgba(255,255,255,.06);
+  box-shadow: 0 12px 28px -14px rgba(59,130,246,.55); outline: none;
+}
+.welcome-officer:hover .welcome-path-arrow, .welcome-officer:focus-visible .welcome-path-arrow { transform: translateX(4px); opacity: 1; }
+.welcome-officer-icon { position: relative; width: 2.2rem; height: 2.2rem; border-radius: 10px; background: rgba(255,255,255,.08); display: grid; place-items: center; flex-shrink: 0; }
+.welcome-officer-icon svg { width: 1.15rem; height: 1.15rem; }
+.welcome-officer-icon .welcome-officer-lock { position: absolute; width: .7rem; height: .7rem; color: #93C5FD; }
+.welcome-officer-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.welcome-officer-title { font-weight: 650; font-size: .88rem; }
+.welcome-officer-text { font-size: .74rem; color: #94A3B8; line-height: 1.35; margin-top: 1px; }
+.welcome-officer-pin { display: none; font-size: .68rem; font-weight: 700; color: #93C5FD; border: 1px solid rgba(147,197,253,.35); padding: .2rem .55rem; border-radius: 999px; white-space: nowrap; }
+
+@media (min-width: 768px) {
+  .welcome-paths { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  .welcome-path { min-height: 11.5rem; padding: 1.35rem 1.4rem; }
+  .welcome-path-title { font-size: 1.2rem; }
+  .welcome-path-text { font-size: .92rem; max-width: 26rem; }
+  .welcome-officer { margin-top: .9rem; padding: .85rem 1.1rem; }
+  .welcome-officer-pin { display: inline-block; }
+}
+@media (max-height: 700px) and (max-width: 767px) {
+  .welcome-badge { display: none; }
+  .welcome-officer { padding: .5rem .75rem; margin-top: .45rem; }
+  .welcome-officer-text { display: none; }
+}
+@media (max-width: 480px) { .welcome-badge { font-size: .66rem; } }
+@media (prefers-reduced-motion: reduce) {
+  .welcome-path, .welcome-officer, .welcome-path-arrow { transition: none; }
+  .welcome-path:hover, .welcome-officer:hover { transform: none; }
+  .welcome-path:hover .welcome-path-arrow { transform: none; }
+}
+.welcome:focus { outline: none; }
+@media (max-width: 767px) {
+  .welcome-path:first-child .welcome-path-title::after { display: inline-block; white-space: nowrap; }
+  .welcome-links { flex-wrap: nowrap; }
+  .welcome-link { padding: 0 .8rem; font-size: .8rem; min-height: 38px; }
+}
+@media (max-height: 700px) and (max-width: 767px) { .welcome-trust { display: none; } }
+@media (max-width: 767px) {
+  .welcome-path:first-child .welcome-path-title::after { display: block; width: fit-content; margin: .3rem 0 .1rem; }
+}

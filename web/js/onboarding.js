@@ -14,9 +14,10 @@
   };
   const icons = () => { if (window.lucide) window.lucide.createIcons(); };
 
+  // Caminos del emprendedor (protagonistas de la bienvenida)
   const PATHS = [
     {
-      id: "abrir", icon: "store", title: "Quiero abrir mi negocio",
+      id: "abrir", icon: "store", title: "Quiero abrir mi negocio", badge: "Ruta guiada",
       text: "Te armamos la ruta de permisos según tu negocio: qué trámite va primero y qué llevar.",
       screen: "screen-unified-forms"
     },
@@ -24,13 +25,17 @@
       id: "mantener", icon: "shield-check", title: "Ya tengo un negocio",
       text: "Te avisamos qué permisos vencen y revisamos que tus documentos estén al día.",
       screen: "screen-renewals"
-    },
-    {
-      id: "funcionario", icon: "landmark", title: "Soy funcionario",
-      text: "Escanea el Pasaporte QR del ciudadano y revisa expedientes en ventanilla.",
-      screen: "screen-officer"
     }
   ];
+  // Acceso secundario para el revisor institucional (abre la puerta con PIN)
+  const OFFICER = {
+    id: "funcionario", title: "Soy funcionario (Revisor GAD)",
+    text: "Pre-valida expedientes de forma remota bajo convenio y revisa el Pasaporte QR del ciudadano.",
+    screen: "screen-officer"
+  };
+  const WELCOME_TITLE = "¿Vas a abrir tu negocio en Riobamba?";
+  const WELCOME_LEAD = "Te decimos qué trámites hacer, en qué orden y qué llevar, para pre-validar tu carpeta sin rechazos y sin tramitadores.";
+  const WELCOME_AUDIO = `Bienvenido a Cívika. ${WELCOME_TITLE} ${WELCOME_LEAD} Si vas a abrir tu negocio, elige: Quiero abrir mi negocio. Si ya lo tienes funcionando, elige: Ya tengo un negocio, y te avisaremos qué permisos vencen. Es gratis, no te pedimos contraseñas, y tus datos se quedan en tu dispositivo.`;
 
   const onboarding = {
     lastFocus: null,
@@ -43,48 +48,65 @@
       el.setAttribute("role", "dialog");
       el.setAttribute("aria-modal", "true");
       el.setAttribute("aria-labelledby", "welcomeTitle");
+      el.tabIndex = -1;
       el.innerHTML = `
         <div class="welcome-inner">
-          <div class="welcome-brand">
-            <span class="welcome-logo">C</span>
-            <span class="welcome-brand-text"><b>Cívika</b><small>Riobamba</small></span>
+          <div class="welcome-top">
+            <div class="welcome-brand">
+              <span class="welcome-logo">C</span>
+              <span class="welcome-brand-text"><b>Cívika</b><small>Riobamba</small></span>
+            </div>
+            <p class="welcome-badge"><i data-lucide="badge-check"></i><span>Guía 2026 • SRI · GAD Riobamba · Bomberos · ARCSA</span></p>
           </div>
 
-          <h1 id="welcomeTitle" class="welcome-title">¿Vas a abrir tu negocio en Riobamba?</h1>
-          <p class="welcome-lead">Te decimos qué trámites hacer, en qué orden y qué llevar, para que llegues a ventanilla sin errores y sin tramitadores.</p>
+          <h1 id="welcomeTitle" class="welcome-title">${WELCOME_TITLE}</h1>
+          <p class="welcome-lead">${WELCOME_LEAD}</p>
 
           <p class="welcome-ask">¿Qué quieres hacer hoy?</p>
           <div class="welcome-paths">
             ${PATHS.map(p => `
               <button type="button" class="welcome-path" data-path="${p.id}">
-                <span class="welcome-path-icon"><i data-lucide="${p.icon}"></i></span>
+                <span class="welcome-path-head">
+                  <span class="welcome-path-icon"><i data-lucide="${p.icon}"></i></span>
+                  ${p.badge ? `<span class="welcome-path-badge">${p.badge}</span>` : ""}
+                </span>
                 <span class="welcome-path-body">
                   <span class="welcome-path-title">${p.title}</span>
                   <span class="welcome-path-text">${p.text}</span>
                 </span>
-                <i data-lucide="arrow-right" class="welcome-path-arrow"></i>
+                <span class="welcome-path-arrow" aria-hidden="true">→</span>
               </button>`).join("")}
           </div>
+
+          <button type="button" class="welcome-officer" data-path="${OFFICER.id}">
+            <span class="welcome-officer-icon"><i data-lucide="shield"></i><i data-lucide="lock" class="welcome-officer-lock"></i></span>
+            <span class="welcome-officer-body">
+              <span class="welcome-officer-title">${OFFICER.title}</span>
+              <span class="welcome-officer-text">${OFFICER.text}</span>
+            </span>
+            <span class="welcome-officer-pin">Acceso con PIN</span>
+            <span class="welcome-path-arrow" aria-hidden="true">→</span>
+          </button>
 
           <div class="welcome-foot">
             <p class="welcome-trust"><i data-lucide="lock"></i>Gratis · Sin contraseñas · Tus datos se quedan en tu dispositivo</p>
             <div class="welcome-links">
-              <button type="button" class="welcome-link" data-action="guide"><i data-lucide="circle-help"></i>Ver cómo funciona</button>
-              <button type="button" class="welcome-link welcome-skip" data-action="skip">Ir al inicio</button>
+              <button type="button" class="welcome-link" data-action="audio" data-audio-title="Bienvenida a Cívika"><i data-lucide="volume-2"></i><span>Escuchar bienvenida</span></button>
+              <button type="button" class="welcome-link" data-action="guide"><i data-lucide="circle-help"></i><span>Ver cómo funciona</span></button>
             </div>
           </div>
         </div>`;
       document.body.appendChild(el);
 
-      el.querySelectorAll(".welcome-path").forEach(btn => btn.addEventListener("click", () => {
-        const p = PATHS.find(x => x.id === btn.dataset.path);
+      const all = [...PATHS, OFFICER];
+      el.querySelectorAll("[data-path]").forEach(btn => btn.addEventListener("click", () => {
+        const p = all.find(x => x.id === btn.dataset.path);
         this.close();
         if (p && window.civikaApp) window.civikaApp.goToScreen(p.screen);
-        if (window.civikaDB) window.civikaDB.recordAnonymousMetric({ evento: `bienvenida_${p.id}` }).catch(() => {});
+        if (p && window.civikaDB) window.civikaDB.recordAnonymousMetric({ evento: `bienvenida_${p.id}` }).catch(() => {});
       }));
-      el.querySelector('[data-action="skip"]').addEventListener("click", () => {
-        this.close();
-        if (window.civikaApp) window.civikaApp.goToScreen("screen-home");
+      el.querySelector('[data-action="audio"]').addEventListener("click", (e) => {
+        if (window.civikaAudio) window.civikaAudio.toggle(WELCOME_AUDIO, e.currentTarget, "Bienvenida a Cívika");
       });
       el.querySelector('[data-action="guide"]').addEventListener("click", () => {
         if (typeof this.openGuide === "function") { this.close(false); this.openGuide(); }
@@ -111,7 +133,8 @@
       el.classList.remove("hidden");
       document.body.classList.add("welcome-open");
       requestAnimationFrame(() => el.classList.add("is-visible"));
-      setTimeout(() => el.querySelector(".welcome-path")?.focus({ preventScroll: true }), 60);
+      // El foco va al diálogo (no a una tarjeta) para que ninguna se vea "seleccionada" al abrir
+      setTimeout(() => el.focus({ preventScroll: true }), 60);
     },
 
     close(markSeen = true) {
@@ -120,6 +143,9 @@
       el.classList.remove("is-visible");
       el.classList.add("hidden");
       document.body.classList.remove("welcome-open");
+      // Si estaba sonando la bienvenida, se detiene al salir
+      const au = window.civikaAudio;
+      if (au && au.state !== "idle" && au.activeTitle === "Bienvenida a Cívika") au.stop();
       if (markSeen) store.set(SEEN_KEY, "1");
       if (this.lastFocus && this.lastFocus.isConnected && markSeen) {
         try { this.lastFocus.focus({ preventScroll: true }); } catch (e) { /* nada */ }
