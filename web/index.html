@@ -65,30 +65,42 @@
     </div>
 
     <div class="sidebar-scroll">
-      <nav class="side-group" aria-label="Ciudadano">
+      <nav class="side-group" aria-label="Ciudadano" data-role-view="ciudadano">
         <p class="side-section-title">Ciudadano</p>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-home">
           <i data-lucide="home"></i><span>Inicio</span>
         </button>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-unified-forms">
-          <i data-lucide="folder-check"></i><span class="side-nav-label">Abrir mi negocio<small>Tu ruta de permisos, paso a paso</small></span>
+          <i data-lucide="folder-check"></i><span class="side-nav-label">Abrir mi negocio<small>Ruta de permisos</small></span>
         </button>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-renewals">
-          <i data-lucide="calendar-clock"></i><span class="side-nav-label">Mantener mi negocio<small>Vencimientos y renovaciones</small></span>
+          <i data-lucide="calendar-clock"></i><span class="side-nav-label">Mantener mi negocio<small>Vencimientos</small></span>
           <span class="renewals-nav-badge side-badge hidden"></span>
         </button>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-institutions">
-          <i data-lucide="map-pin"></i><span class="side-nav-label">Oficinas y mapa<small>Dónde queda cada institución</small></span>
+          <i data-lucide="map-pin"></i><span class="side-nav-label">Oficinas y mapa<small>Mapa y horarios</small></span>
         </button>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-assistant">
-          <i data-lucide="sparkles"></i><span class="side-nav-label">Copiloto IA<small>Pregunta lo que no entiendas</small></span>
+          <i data-lucide="sparkles"></i><span class="side-nav-label">Copiloto IA<small>Resuelve tus dudas</small></span>
+        </button>
+        <button type="button" class="side-role-link" onclick="civikaApp.goToScreen('screen-officer')">
+          <i data-lucide="landmark"></i><span>¿Eres funcionario? Entra aquí</span>
         </button>
       </nav>
 
-      <nav class="side-group" aria-label="Funcionario">
+      <nav class="side-group" aria-label="Funcionario" data-role-view="funcionario">
         <p class="side-section-title">Funcionario GAD</p>
         <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-officer">
-          <i data-lucide="scan-line"></i><span class="side-nav-label">Soy funcionario<small>Ventanilla QR y expedientes</small></span>
+          <i data-lucide="scan-line"></i><span class="side-nav-label">Ventanilla QR<small>Escanear el pasaporte</small></span>
+        </button>
+        <button type="button" class="side-nav-btn" onclick="window.civikaRoles && civikaRoles.openPanel()">
+          <i data-lucide="layout-dashboard"></i><span class="side-nav-label">Panel de expedientes<small>Estado por institución</small></span>
+        </button>
+        <button type="button" class="nav-tab-btn side-nav-btn" data-target-screen="screen-institutions">
+          <i data-lucide="map-pin"></i><span class="side-nav-label">Oficinas y mapa<small>Mapa y horarios</small></span>
+        </button>
+        <button type="button" class="side-role-link" onclick="civikaApp.goToScreen('screen-home')">
+          <i data-lucide="arrow-left"></i><span>Volver a la vista ciudadana</span>
         </button>
       </nav>
 
@@ -101,13 +113,9 @@
         </button>
         <button type="button" class="side-pref-btn" onclick="window.civikaOnboarding && civikaOnboarding.openGuide()">
           <i data-lucide="circle-help"></i>
-          <span>Cómo funciona</span>
+          <span>Ayuda: cómo funciona</span>
         </button>
-        <button type="button" class="side-pref-btn" onclick="window.civikaOnboarding && civikaOnboarding.open()">
-          <i data-lucide="door-open"></i>
-          <span>Ver bienvenida</span>
-        </button>
-        <button id="liveMetricsHeaderBtn" type="button" class="side-pref-btn">
+        <button id="liveMetricsHeaderBtn" type="button" class="side-pref-btn" data-role-view="funcionario">
           <i data-lucide="bar-chart-3"></i>
           <span>Métricas</span>
           <span class="pref-tag">Demo</span>
@@ -167,11 +175,11 @@
         <button type="button" class="icon-btn" onclick="window.civikaOnboarding && civikaOnboarding.openGuide()" aria-label="Cómo funciona Cívika" title="Cómo funciona">
           <i data-lucide="circle-help" class="w-5 h-5"></i>
         </button>
-        <button type="button" class="icon-btn relative" onclick="civikaApp.goToScreen('screen-renewals')" aria-label="Renovaciones y vencimientos" title="Renovaciones">
+        <button type="button" class="icon-btn relative" data-role-view="ciudadano" onclick="civikaApp.goToScreen('screen-renewals')" aria-label="Renovaciones y vencimientos" title="Renovaciones">
           <i data-lucide="bell" class="w-5 h-5"></i>
           <span class="renewals-nav-badge topbar-badge hidden"></span>
         </button>
-        <button type="button" class="btn-primary btn-sm hidden lg:inline-flex" onclick="civikaApp.goToScreen('screen-assistant')">
+        <button type="button" class="btn-primary btn-sm hidden lg:inline-flex" data-role-view="ciudadano" onclick="civikaApp.goToScreen('screen-assistant')">
           <i data-lucide="sparkles" class="w-4 h-4"></i><span>Copiloto IA</span>
         </button>
       </div>
@@ -663,13 +671,22 @@
   <!-- CELULAR: navegación inferior + botón flotante del Copiloto   -->
   <!-- ============================================================ -->
   <nav class="bottom-nav lg:hidden" aria-label="Navegación principal">
-    <button type="button" class="nav-tab-btn bottom-nav-btn" data-target-screen="screen-home">
+    <button type="button" class="nav-tab-btn bottom-nav-btn" data-target-screen="screen-home" data-role-view="ciudadano">
       <i data-lucide="home"></i><span>Inicio</span>
     </button>
-    <button type="button" class="nav-tab-btn bottom-nav-btn" data-target-screen="screen-unified-forms">
+    <button type="button" class="nav-tab-btn bottom-nav-btn" data-target-screen="screen-unified-forms" data-role-view="ciudadano">
       <i data-lucide="folder-check"></i><span>Abrir negocio</span>
     </button>
-    <button type="button" class="nav-tab-btn bottom-nav-btn relative" data-target-screen="screen-renewals">
+    <button type="button" class="nav-tab-btn bottom-nav-btn" data-target-screen="screen-officer" data-role-view="funcionario">
+      <i data-lucide="scan-line"></i><span>Ventanilla</span>
+    </button>
+    <button type="button" class="bottom-nav-btn" data-role-view="funcionario" onclick="window.civikaRoles && civikaRoles.openPanel()">
+      <i data-lucide="layout-dashboard"></i><span>Panel</span>
+    </button>
+    <button type="button" class="nav-tab-btn bottom-nav-btn" data-target-screen="screen-institutions" data-role-view="funcionario">
+      <i data-lucide="map-pin"></i><span>Mapa</span>
+    </button>
+    <button type="button" class="nav-tab-btn bottom-nav-btn relative" data-role-view="ciudadano" data-target-screen="screen-renewals">
       <i data-lucide="calendar-clock"></i><span>Mantener</span>
       <span class="renewals-nav-badge bottom-badge hidden"></span>
     </button>
@@ -678,7 +695,7 @@
     </button>
   </nav>
 
-  <button type="button" id="copilotFab" class="copilot-fab lg:hidden" onclick="civikaApp.goToScreen('screen-assistant')" aria-label="Abrir Copiloto IA">
+  <button type="button" id="copilotFab" data-role-view="ciudadano" class="copilot-fab lg:hidden" onclick="civikaApp.goToScreen('screen-assistant')" aria-label="Abrir Copiloto IA">
     <i data-lucide="sparkles" class="w-5 h-5"></i>
     <span>Copiloto IA</span>
   </button>
@@ -760,6 +777,7 @@
   <script src="js/citizen_tools.js"></script>
   <script src="js/onboarding.js"></script>
   <script src="js/route_focus.js"></script>
+  <script src="js/forms_flow.js"></script>
   <script src="js/features.js"></script>
   <script src="js/pdf.js"></script>
 </body>

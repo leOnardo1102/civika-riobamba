@@ -178,6 +178,7 @@
           <div class="guide-dots" role="tablist" aria-label="Pasos de la guía">
             ${GUIDE.map((_, i) => `<button type="button" class="guide-dot" data-i="${i}" role="tab" aria-label="Paso ${i + 1}"></button>`).join("")}
           </div>
+          <button type="button" class="guide-welcome-link" data-action="welcome">Ver la bienvenida</button>
           <div class="guide-buttons">
             <button type="button" class="btn-secondary btn-sm" data-action="prev">Atrás</button>
             <button type="button" class="btn-primary btn-sm" data-action="next">Siguiente</button>
@@ -190,6 +191,7 @@
       const btn = e.target.closest("button");
       if (!btn) return;
       if (btn.dataset.action === "close") this.closeGuide();
+      if (btn.dataset.action === "welcome") { this.closeGuide(); this.open(); return; }
       if (btn.dataset.action === "prev") this.showGuideStep(this.guideIndex - 1);
       if (btn.dataset.action === "next") {
         if (this.guideIndex < GUIDE.length - 1) this.showGuideStep(this.guideIndex + 1);
@@ -249,10 +251,49 @@
     if (back && back.isConnected && !back.closest("#civikaWelcome")) { try { back.focus({ preventScroll: true }); } catch (e) { /* nada */ } }
   };
 
+  // ==============================================================
+  // Vista según el rol: ciudadano o funcionario
+  // ==============================================================
+  const ROLE_KEY = "civika_role_v1";
+  const CITIZEN_SCREENS = ["screen-home", "screen-unified-forms", "screen-renewals", "screen-assistant"];
+  const roles = {
+    get() { return store.get(ROLE_KEY) === "funcionario" ? "funcionario" : "ciudadano"; },
+    set(role) {
+      const r = role === "funcionario" ? "funcionario" : "ciudadano";
+      store.set(ROLE_KEY, r);
+      document.body.dataset.role = r;
+    },
+    openPanel() {
+      if (!window.civikaApp) return;
+      window.civikaApp.goToScreen("screen-officer");
+      setTimeout(() => {
+        const target = document.getElementById("officerBackoffice");
+        const visible = target && !target.classList.contains("hidden") && target.offsetParent !== null;
+        (visible ? target : document.getElementById("officerPinGate"))?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 250);
+    }
+  };
+  window.civikaRoles = roles;
+
   window.civikaOnboarding = onboarding;
 
   const boot = () => {
-    if (!window.civikaApp) { setTimeout(boot, 60); return; }
+    const app = window.civikaApp;
+    if (!app) { setTimeout(boot, 60); return; }
+    // El rol sigue a la pantalla: Ventanilla → funcionario; pantallas del ciudadano → ciudadano
+    if (!app.__rolesInstalled) {
+      app.__rolesInstalled = true;
+      const orig = app.goToScreen;
+      app.goToScreen = function (screenId, ...rest) {
+        if (screenId === "screen-officer") roles.set("funcionario");
+        else if (CITIZEN_SCREENS.includes(screenId)) roles.set("ciudadano");
+        return orig.call(this, screenId, ...rest);
+      };
+      const cur = app.currentScreen;
+      if (cur === "screen-officer") roles.set("funcionario");
+      else if (CITIZEN_SCREENS.includes(cur)) roles.set("ciudadano");
+      else roles.set(roles.get());
+    }
     if (onboarding.shouldShow()) onboarding.open();
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => setTimeout(boot, 0));

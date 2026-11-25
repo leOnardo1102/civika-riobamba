@@ -223,7 +223,7 @@ class CivikaApp {
       "screen-assistant": "Copiloto IA",
       "screen-renewals": "Mantener mi negocio",
       "screen-institutions": "Oficinas y mapa",
-      "screen-officer": "Soy funcionario · Ventanilla"
+      "screen-officer": "Ventanilla del funcionario"
     };
     const pageTitle = document.getElementById("pageTitle");
     if (pageTitle) pageTitle.textContent = titles[screenId] || "Cívika";

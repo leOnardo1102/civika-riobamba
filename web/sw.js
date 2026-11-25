@@ -1,5 +1,5 @@
 ﻿/* CÃ­vika â€“ Service Worker: guarda la app en el equipo para que funcione sin internet */
-const CACHE = "civika-v2026-11-25a";
+const CACHE = "civika-v2026-11-25b";
 const ASSETS = [
   "./",
   "./index.html",
@@ -16,6 +16,7 @@ const ASSETS = [
   "./js/citizen_tools.js",
   "./js/onboarding.js",
   "./js/route_focus.js",
+  "./js/forms_flow.js",
   "./js/features.js",
   "./js/ai_bridge.js",
   "./js/pdf.js",

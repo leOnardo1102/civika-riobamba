@@ -1100,3 +1100,62 @@ body.welcome-open { overflow: hidden; }
   .route-bar-title { font-size: .86rem; }
   .route-toggle-label { display: none; }
 }
+
+/* Vista según el rol (ciudadano / funcionario) */
+body:not([data-role="funcionario"]) [data-role-view="funcionario"] { display: none !important; }
+body[data-role="funcionario"] [data-role-view="ciudadano"] { display: none !important; }
+.side-role-link {
+  width: 100%; display: flex; align-items: center; gap: .6rem; margin-top: .35rem;
+  min-height: 36px; padding: .4rem .75rem; border-radius: var(--radius-sm);
+  font-size: .8rem; font-weight: 500; color: var(--text-3); text-align: left; transition: background-color .15s, color .15s;
+}
+.side-role-link:hover { background: #F1F5F9; color: var(--text); }
+.side-role-link svg { width: 16px; height: 16px; flex-shrink: 0; color: #94A3B8; }
+
+/* ================================================================ */
+/* "Abrir mi negocio" en dos momentos                                */
+/* ================================================================ */
+#screen-unified-forms.flow-picking .forms-layout { display: none; }
+#screen-unified-forms.flow-picked [data-flow="picker"] { display: none; }
+.flow-hint { font-size: .9rem; color: var(--text-2); margin: -.35rem 0 .85rem; }
+
+.biz-strip {
+  display: flex; align-items: center; justify-content: space-between; gap: .85rem; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: .85rem 1rem;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04); scroll-margin-top: 5.5rem;
+}
+.biz-strip-main { display: flex; align-items: center; gap: .8rem; min-width: 0; }
+.biz-strip-icon { width: 2.6rem; height: 2.6rem; border-radius: 12px; background: #EFF6FF; color: var(--primary); display: grid; place-items: center; flex-shrink: 0; }
+.biz-strip-icon svg { width: 1.3rem; height: 1.3rem; }
+.biz-strip-eyebrow { font-size: .68rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); }
+.biz-strip-name { font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1.25; }
+.biz-strip-meta { font-size: .78rem; color: var(--text-3); margin-top: 1px; }
+.biz-strip-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+#selectedBusinessDocSection:not(.fold-closed) { margin-top: .75rem; }
+
+/* Secciones plegables */
+.fold-closed { display: none !important; }
+.fold-head-inline { display: none !important; }
+.fold-head {
+  width: 100%; display: flex; align-items: center; gap: .8rem; text-align: left; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: .8rem .95rem;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.fold-head:hover { border-color: #BFDBFE; background: #FAFCFF; }
+.fold-head:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.fold-head[aria-expanded="true"] { border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; margin-bottom: .6rem; }
+.fold-icon { width: 2.3rem; height: 2.3rem; border-radius: 11px; background: #F1F5F9; color: #334155; display: grid; place-items: center; flex-shrink: 0; }
+.fold-icon svg { width: 1.15rem; height: 1.15rem; }
+.fold-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.fold-title { font-size: .92rem; font-weight: 650; color: var(--text); }
+.fold-desc { font-size: .78rem; color: var(--text-3); line-height: 1.35; margin-top: 1px; }
+.fold-action { display: inline-flex; align-items: center; gap: .2rem; font-size: .75rem; font-weight: 650; color: var(--primary); flex-shrink: 0; }
+.fold-action svg { width: 1rem; height: 1rem; transition: transform .2s; }
+.fold-head[aria-expanded="true"] .fold-action svg { transform: rotate(180deg); }
+.fold-body > h3.section-title:first-child { display: none; }
+@media (max-width: 420px) { .fold-action-label { display: none; } .fold-desc { font-size: .74rem; } }
+.guide-welcome-link { font-size: .78rem; font-weight: 600; color: var(--text-3); text-decoration: underline; text-underline-offset: 3px; background: none; padding: .25rem; cursor: pointer; margin-left: auto; margin-right: .25rem; }
+.guide-welcome-link:hover { color: var(--text); }
+@media (max-width: 400px) { .guide-nav { flex-wrap: wrap; } .guide-welcome-link { order: 3; margin: 0; width: 100%; text-align: left; } }
+#screen-unified-forms.flow-picked.flow-changing [data-flow="picker"] { display: block; }
+.flow-keep { font-weight: 650; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; background: none; padding: 0; cursor: pointer; }
