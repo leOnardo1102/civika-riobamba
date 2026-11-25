@@ -131,7 +131,8 @@
       const q = (() => { let t = window.location.search; try { t += "&" + window.top.location.search; } catch (e) { /* iframe */ } return t; })();
       if (/[?&]bienvenida=1\b/.test(q)) return true;
       if (/[?&]bienvenida=0\b/.test(q)) return false;
-      return store.get(SEEN_KEY) !== "1";
+      // Se muestra cada vez que se abre la app (es la puerta de entrada); ?bienvenida=0 la omite
+      return true;
     }
   };
 
